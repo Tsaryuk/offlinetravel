@@ -15,13 +15,13 @@
 <style>
 /* ─── TOKENS ─── */
 :root {
-  --bg: #f5f5f0;
+  --bg: #f7f7f2;
   --surface: #ffffff;
-  --surface2: #ebebeb;
-  --border: #e0e0e0;
-  --text: #0a0a0a;
-  --sub: #666666;
-  --ph: #999999;
+  --surface2: #f0f0eb;
+  --border: #e8e8e3;
+  --text: #1a1a1a;
+  --sub: #777777;
+  --ph: #aaaaaa;
   --accent: #e8853d;
   --accent-bg: #fef3ea;
   --accent-border: #f0c8a0;
@@ -29,13 +29,13 @@
   --green-bg: #edf7f3;
   --red: #d93025;
   --red-bg: #fdecea;
-  --blue: #0055cc;
+  --blue: #3478f6;
   --blue-bg: #e8f0fe;
-  --acc: #0a0a0a;
+  --acc: #1a1a1a;
   --acc-fg: #ffffff;
   --nav-h: 56px;
-  --r: 14px;
-  --r-sm: 9px;
+  --r: 16px;
+  --r-sm: 10px;
   --safe-top: 0px;
   --safe-bot: 0px;
 }
@@ -74,7 +74,7 @@ body{margin:0;padding:0;height:100%;font-family:'Manrope',system-ui,sans-serif;f
 #screens::-webkit-scrollbar{display:none}
 .screen{flex:0 0 100vw;width:100vw;height:100%;scroll-snap-align:start;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;scrollbar-width:none;background:var(--bg)}
 .screen::-webkit-scrollbar{display:none}
-.screen-inner{padding:0 20px 100px;padding-left:calc(20px + var(--safe-left));padding-right:calc(20px + var(--safe-right))}
+.screen-inner{padding:0 16px 120px;padding-left:calc(16px + env(safe-area-inset-left, 0px));padding-right:calc(16px + env(safe-area-inset-right, 0px))}
 
 /* ─── BOTTOM NAV ─── */
 #nav{flex-shrink:0;background:var(--surface);border-top:1px solid var(--border);display:flex;align-items:center;height:calc(var(--nav-h) + 8px);padding-bottom:calc(var(--safe-bot) + 8px);-webkit-transform:translate3d(0,0,0);transform:translate3d(0,0,0)}
@@ -91,7 +91,7 @@ body{margin:0;padding:0;height:100%;font-family:'Manrope',system-ui,sans-serif;f
 .page-hdr-title{font-size:22px;font-weight:800;letter-spacing:-.3px}
 
 /* ─── CARDS ─── */
-.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
+.card{background:var(--surface);border:none;border-radius:var(--r);overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.04)}
 
 /* ─── BUTTONS ─── */
 .btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:15px 18px;border:none;border-radius:var(--r);font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;transition:opacity .15s,transform .1s}
@@ -192,12 +192,12 @@ body{margin:0;padding:0;height:100%;font-family:'Manrope',system-ui,sans-serif;f
 
 /* ─── EXPENSES ─── */
 .exp-tabs{display:flex;gap:6px;margin-bottom:16px}
-.exp-tab{padding:8px 16px;border-radius:20px;border:1.5px solid var(--border);background:none;font-family:inherit;font-size:13px;font-weight:700;color:var(--sub);cursor:pointer;transition:all .15s}
+.exp-tab{padding:8px 16px;border-radius:20px;border:1.5px solid var(--border);background:var(--surface);font-family:inherit;font-size:13px;font-weight:700;color:var(--sub);cursor:pointer;transition:all .15s}
 .exp-tab:active{transform:scale(.95)}
 .exp-tab.on{background:var(--acc);border-color:var(--acc);color:var(--acc-fg)}
 
 .exp-summary{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
-.exp-stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px}
+.exp-stat{background:var(--surface);border:none;border-radius:var(--r);padding:14px 16px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
 .exp-stat-val{font-size:22px;font-weight:800;margin-bottom:2px}
 .exp-stat-val.green{color:var(--green)}
 .exp-stat-val.red{color:var(--red)}
@@ -227,9 +227,13 @@ body{margin:0;padding:0;height:100%;font-family:'Manrope',system-ui,sans-serif;f
 .exp-payer{font-size:12px;color:var(--sub)}
 .exp-amount{font-size:15px;font-weight:800;text-align:right;flex-shrink:0}
 
-.balance-item{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;margin-bottom:6px}
-.balance-name{font-size:14px;font-weight:600}
-.balance-val{font-size:15px;font-weight:800}
+.balance-item{display:flex;align-items:center;gap:12px;padding:14px 16px;margin-bottom:6px}
+.balance-ava{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:#fff;flex-shrink:0}
+.balance-name{font-size:14px;font-weight:600;flex:1}
+.balance-you{font-size:11px;color:var(--sub);font-weight:500}
+.balance-val{font-size:16px;font-weight:800;flex-shrink:0}
+.balance-val.green{color:var(--green)}
+.balance-val.red{color:var(--red)}
 .balance-sort{display:flex;gap:6px;margin-bottom:12px}
 
 .photos-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
@@ -241,7 +245,7 @@ body{margin:0;padding:0;height:100%;font-family:'Manrope',system-ui,sans-serif;f
 
 /* ─── ADD EXPENSE SHEET ─── */
 .chip-row{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 12px}
-.chip{padding:7px 14px;border-radius:20px;border:1.5px solid var(--border);background:none;font-family:inherit;font-size:13px;font-weight:600;color:var(--sub);cursor:pointer;transition:all .15s}
+.chip{padding:7px 14px;border-radius:20px;border:1.5px solid var(--border);background:var(--surface);font-family:inherit;font-size:13px;font-weight:600;color:var(--sub);cursor:pointer;transition:all .15s}
 .chip:active{transform:scale(.95)}
 .chip.on{background:var(--acc);border-color:var(--acc);color:var(--acc-fg)}
 .member-check{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)}
@@ -262,6 +266,40 @@ body{margin:0;padding:0;height:100%;font-family:'Manrope',system-ui,sans-serif;f
 .confirm-btns .btn{flex:1;padding:12px}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
 @keyframes scaleUp{from{opacity:0;transform:scale(.9)}to{opacity:1;transform:scale(1)}}
+/* ─── STEPPER (parts split) ─── */
+.stepper{display:flex;align-items:center;gap:0;flex-shrink:0}
+.stepper-btn{width:30px;height:30px;border-radius:50%;border:1.5px solid var(--border);background:var(--surface);font-size:16px;font-weight:700;color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .1s;font-family:inherit}
+.stepper-btn:active{transform:scale(.9);background:var(--surface2)}
+.stepper-val{width:28px;text-align:center;font-size:15px;font-weight:700}
+
+/* ─── FAB BUTTON ─── */
+.fab{position:sticky;bottom:12px;z-index:11;margin:0 auto;display:flex;align-items:center;justify-content:center;gap:8px;padding:14px 28px;border:none;border-radius:28px;background:var(--accent);color:#fff;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;box-shadow:0 4px 16px rgba(232,133,61,.35);transition:transform .1s}
+.fab:active{transform:scale(.95)}
+
+/* ─── DEBTS OVERLAY ─── */
+.debts-header{text-align:center;padding:20px 0 16px}
+.debts-total{font-size:28px;font-weight:800;margin-bottom:2px}
+.debts-total.green{color:var(--green)}
+.debts-total.red{color:var(--red)}
+.debts-label{font-size:13px;color:var(--sub)}
+.debt-card{padding:16px;margin-bottom:8px}
+.debt-card-top{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.debt-ava{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:#fff;flex-shrink:0}
+.debt-info{flex:1}
+.debt-name{font-size:14px;font-weight:700}
+.debt-dir{font-size:12px;color:var(--sub)}
+.debt-amount{font-size:18px;font-weight:800;flex-shrink:0}
+.debt-actions{display:flex;gap:8px}
+.debt-actions .btn{flex:1;padding:10px;font-size:13px}
+
+/* ─── BALANCE SUMMARY CARD ─── */
+.bal-my-card{background:var(--surface);border-radius:var(--r);padding:16px;margin-bottom:16px;display:flex;align-items:center;gap:14px;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.bal-my-icon{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+.bal-my-text{flex:1}
+.bal-my-title{font-size:15px;font-weight:700}
+.bal-my-sub{font-size:12px;color:var(--sub);line-height:1.4;margin-top:2px}
+.bal-my-arrow{font-size:18px;color:var(--ph);flex-shrink:0}
+
 .exp-row{display:flex;gap:10px;margin-top:12px}
 .exp-row>div:first-child{flex:1}
 .exp-row .inp-select{width:90px}
@@ -433,7 +471,6 @@ body{margin:0;padding:0;height:100%;font-family:'Manrope',system-ui,sans-serif;f
       <div class="screen-inner">
         <div class="page-hdr">
           <div class="page-hdr-title">Расходы</div>
-          <button class="btn btn-accent btn-sm" onclick="showAddOperation()">+ Добавить</button>
         </div>
 
         <div class="exp-tabs">
@@ -450,11 +487,7 @@ body{margin:0;padding:0;height:100%;font-family:'Manrope',system-ui,sans-serif;f
 
         <!-- SUB-TAB 1: BALANCE -->
         <div id="exp-pane-bal" style="display:none">
-          <div class="exp-summary" id="bal-summary"></div>
-          <div id="settle-section" style="display:none">
-            <div class="exp-section-title">Кто кому должен</div>
-            <div id="settle-list"></div>
-          </div>
+          <div id="bal-my-section"></div>
           <div class="exp-section-title">Баланс участников</div>
           <div class="balance-sort" id="bal-sort"></div>
           <div id="balance-list"></div>
@@ -464,6 +497,8 @@ body{margin:0;padding:0;height:100%;font-family:'Manrope',system-ui,sans-serif;f
         <div id="exp-pane-photos" style="display:none">
           <div id="photos-list"></div>
         </div>
+
+        <button class="fab" onclick="showAddOperation()">+ Добавить расход</button>
       </div>
     </div>
   </div>
@@ -505,7 +540,7 @@ body{margin:0;padding:0;height:100%;font-family:'Manrope',system-ui,sans-serif;f
 
     <div class="chip-row" id="exp-op-types">
       <button class="chip on" onclick="pickOpType('expense')">💸 Расход</button>
-      <button class="chip" onclick="pickOpType('income')">💰 Доход</button>
+      <button class="chip" onclick="pickOpType('income')">💰 Возврат</button>
       <button class="chip" onclick="pickOpType('transfer')">🔄 Перевод</button>
     </div>
 
@@ -614,6 +649,18 @@ body{margin:0;padding:0;height:100%;font-family:'Manrope',system-ui,sans-serif;f
       <button class="btn btn-ghost" style="color:var(--red)" onclick="deleteExpense()">Удалить</button>
     </div>
     <button class="btn btn-ghost" style="margin-top:8px" onclick="closeSheet('ov-exp-detail')">Закрыть</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- DEBTS SHEET -->
+<!-- ═══════════════════════════════════════════ -->
+<div class="overlay" id="ov-debts">
+  <div class="sheet" id="sh-debts">
+    <div class="sheet-handle" id="sh-debts-handle"></div>
+    <div class="debts-header" id="debts-header"></div>
+    <div id="debts-list"></div>
+    <button class="btn btn-ghost" style="margin-top:12px" onclick="closeSheet('ov-debts')">Закрыть</button>
   </div>
 </div>
 
@@ -971,6 +1018,7 @@ async function bootApp() {
   // Init sheet drag
   initSheetDrag('sh-expense-handle', 'ov-expense');
   initSheetDrag('sh-exp-detail-handle', 'ov-exp-detail');
+  initSheetDrag('sh-debts-handle', 'ov-debts');
   initSheetDrag('sh-profile-handle', 'ov-profile');
 }
 
@@ -1268,44 +1316,94 @@ function renderExpensesList() {
 /* ═══════════════════════════════════════════
    RENDER: BALANCE
 ═══════════════════════════════════════════ */
+const AVA_COLORS = ['#e8853d','#3478f6','#1a9e6b','#d93025','#8e44ad','#16a085','#c0392b','#2980b9','#f39c12','#7f8c8d'];
+function avaColor(tgId) { let h=0; for(let i=0;i<String(tgId).length;i++) h=(h*31+String(tgId).charCodeAt(i))&0xffffff; return AVA_COLORS[h%AVA_COLORS.length]; }
+function avaInitial(name) { return (name||'?').charAt(0).toUpperCase(); }
+
 function renderBalance() {
   const balances = calcBalances();
   const myBal = balances[S.user?.tgId] || 0;
-  const onlyExpenses = _expenses.filter(e => (e.op_type||'expense') === 'expense');
-  const totalSpent = onlyExpenses.reduce((s,e) => s + parseFloat(e.amount), 0);
-
-  el('bal-summary').innerHTML =
-    '<div class="exp-stat"><div class="exp-stat-val">'+fmtMoney(totalSpent)+'</div><div class="exp-stat-lbl">Всего потрачено</div></div>' +
-    '<div class="exp-stat"><div class="exp-stat-val '+(myBal>=0?'green':'red')+'">'+fmtMoney(Math.abs(myBal))+'</div><div class="exp-stat-lbl">'+(myBal>=0?'Тебе должны':'Ты должен')+'</div></div>';
-
-  // Settlements
   const settles = calcSettlements(balances);
-  if (settles.length) {
-    el('settle-section').style.display = '';
-    el('settle-list').innerHTML = settles.map(s => {
-      const fromName = memberName(s.from);
-      const toName = memberName(s.to);
-      const isMe = s.from === S.user?.tgId || s.to === S.user?.tgId;
-      return '<div class="card settle-item"><div class="settle-text"><strong>'+esc(fromName)+'</strong> <span class="settle-arrow">&rarr;</span> <strong>'+esc(toName)+'</strong></div><div class="settle-amount">'+fmtMoney(s.amount)+'</div>'+(isMe?'<button class="settle-btn" onclick="doSettle(\''+s.from+'\',\''+s.to+'\','+s.amount+')">Оплачено</button>':'')+'</div>';
-    }).join('');
-  } else {
-    el('settle-section').style.display = 'none';
+
+  // My summary card
+  const mySettles = settles.filter(s => s.from === S.user?.tgId || s.to === S.user?.tgId);
+  const owedToMe = settles.filter(s => s.to === S.user?.tgId);
+  const iOwe = settles.filter(s => s.from === S.user?.tgId);
+  let myCardHtml = '';
+
+  if (myBal >= 0 && owedToMe.length) {
+    const names = owedToMe.map(s => memberName(s.from)).join(', ');
+    myCardHtml = '<div class="bal-my-card" onclick="showDebts()"><div class="bal-my-icon" style="background:var(--green-bg)">🤑</div><div class="bal-my-text"><div class="bal-my-title" style="color:var(--green)">тебе должны '+fmtMoney(Math.abs(Math.round(myBal)))+'</div><div class="bal-my-sub">'+esc(names)+' должны вернуть тебе деньги</div></div><div class="bal-my-arrow">›</div></div>';
+  } else if (myBal < 0 && iOwe.length) {
+    const names = iOwe.map(s => memberName(s.to)).join(', ');
+    myCardHtml = '<div class="bal-my-card" onclick="showDebts()"><div class="bal-my-icon" style="background:var(--red-bg)">💸</div><div class="bal-my-text"><div class="bal-my-title" style="color:var(--red)">ты должен '+fmtMoney(Math.abs(Math.round(myBal)))+'</div><div class="bal-my-sub">Вернуть деньги: '+esc(names)+'</div></div><div class="bal-my-arrow">›</div></div>';
   }
+  el('bal-my-section').innerHTML = myCardHtml;
 
   // Sort buttons
   el('bal-sort').innerHTML = [['name','По имени'],['low','Минимум'],['high','Максимум']].map(([k,l]) =>
     '<button class="chip'+(k===_expBalSort?' on':'')+'" onclick="sortBalance(\''+k+'\')">'+l+'</button>'
   ).join('');
 
-  // Balance list
+  // Balance list with avatars
   let entries = _members.map(m => ({ tgId: m.tg_id, name: m.display_name||m.tg_name||'?', bal: balances[m.tg_id]||0 }));
   if (_expBalSort === 'low') entries.sort((a,b) => a.bal - b.bal);
   else if (_expBalSort === 'high') entries.sort((a,b) => b.bal - a.bal);
   else entries.sort((a,b) => a.name.localeCompare(b.name));
 
-  el('balance-list').innerHTML = entries.map(e =>
-    '<div class="card balance-item"><span class="balance-name">'+esc(e.name)+'</span><span class="balance-val '+(e.bal>=0?'green':'red')+'">'+( e.bal>=0?'+':'')+fmtMoney(Math.round(e.bal))+'</span></div>'
-  ).join('');
+  el('balance-list').innerHTML = entries.map(e => {
+    const isMe = e.tgId === S.user?.tgId;
+    const color = avaColor(e.tgId);
+    return '<div class="card balance-item"><div class="balance-ava" style="background:'+color+'">'+avaInitial(e.name)+'</div><div class="balance-name">'+esc(e.name)+(isMe?' <span class="balance-you">я</span>':'')+'</div><span class="balance-val '+(e.bal>=0?'green':'red')+'">'+( e.bal>=0?'+':'')+fmtMoney(Math.round(e.bal))+'</span></div>';
+  }).join('');
+}
+
+function showDebts() {
+  const balances = calcBalances();
+  const settles = calcSettlements(balances);
+  const myBal = balances[S.user?.tgId] || 0;
+  const owedToMe = settles.filter(s => s.to === S.user?.tgId);
+  const iOwe = settles.filter(s => s.from === S.user?.tgId);
+
+  let headerHtml = '';
+  if (myBal >= 0) {
+    headerHtml = '<div class="debts-label">тебе должны</div><div class="debts-total green">'+fmtMoney(Math.abs(Math.round(myBal)))+'</div>';
+  } else {
+    headerHtml = '<div class="debts-label">ты должен</div><div class="debts-total red">'+fmtMoney(Math.abs(Math.round(myBal)))+'</div>';
+  }
+  el('debts-header').innerHTML = headerHtml;
+
+  let listHtml = '';
+
+  if (owedToMe.length) {
+    listHtml += owedToMe.map(s => {
+      const name = memberName(s.from);
+      const color = avaColor(s.from);
+      return '<div class="card debt-card"><div class="debt-card-top"><div class="debt-ava" style="background:'+color+'">'+avaInitial(name)+'</div><div class="debt-info"><div class="debt-name">'+esc(name)+'</div><div class="debt-dir">должен тебе</div></div><div class="debt-amount" style="color:var(--green)">'+fmtMoney(s.amount)+'</div></div><div class="debt-actions"><button class="btn" style="background:var(--blue);color:#fff" onclick="confirmSettle(\''+s.from+'\',\''+s.to+'\','+s.amount+')">Получено</button></div></div>';
+    }).join('');
+  }
+
+  if (iOwe.length) {
+    listHtml += iOwe.map(s => {
+      const name = memberName(s.to);
+      const color = avaColor(s.to);
+      return '<div class="card debt-card"><div class="debt-card-top"><div class="debt-ava" style="background:'+color+'">'+avaInitial(name)+'</div><div class="debt-info"><div class="debt-name">'+esc(name)+'</div><div class="debt-dir">ты должен</div></div><div class="debt-amount" style="color:var(--red)">'+fmtMoney(s.amount)+'</div></div></div>';
+    }).join('');
+  }
+
+  // All settlements (not involving me)
+  const others = settles.filter(s => s.from !== S.user?.tgId && s.to !== S.user?.tgId);
+  if (others.length) {
+    listHtml += '<div class="exp-section-title" style="margin-top:16px">Все расчёты</div>';
+    listHtml += others.map(s => {
+      const fromN = memberName(s.from);
+      const toN = memberName(s.to);
+      return '<div class="card debt-card"><div class="debt-card-top"><div class="debt-ava" style="background:'+avaColor(s.from)+'">'+avaInitial(fromN)+'</div><div class="debt-info"><div class="debt-name">'+esc(fromN)+' &rarr; '+esc(toN)+'</div><div class="debt-dir">'+fmtMoney(s.amount)+'</div></div></div></div>';
+    }).join('');
+  }
+
+  el('debts-list').innerHTML = listHtml;
+  openSheet('ov-debts');
 }
 
 function sortBalance(key) {
@@ -1382,6 +1480,14 @@ function calcSettlements(balances) {
   return result;
 }
 
+function confirmSettle(fromId, toId, amount) {
+  const name = memberName(fromId);
+  showConfirm('Подтвердить получение?', esc(name)+' вернул '+fmtMoney(amount)+'?', async () => {
+    closeSheet('ov-debts');
+    await doSettle(fromId, toId, amount);
+  });
+}
+
 async function doSettle(fromId, toId, amount) {
   await sbPost('settlements', {
     trip_id: S.tripId,
@@ -1455,7 +1561,7 @@ function showAddOperation(editId) {
 }
 
 function renderOpTypeChips() {
-  const types = [['expense','💸 Расход'],['income','💰 Доход'],['transfer','🔄 Перевод']];
+  const types = [['expense','💸 Расход'],['income','💰 Возврат'],['transfer','🔄 Перевод']];
   el('exp-op-types').innerHTML = types.map(([k,l]) =>
     '<button class="chip'+(k===_expOpType?' on':'')+'" onclick="pickOpType(\''+k+'\')">'+l+'</button>'
   ).join('');
@@ -1467,6 +1573,16 @@ function pickOpType(type) {
   el('exp-op-types').querySelector('.chip:nth-child('+(type==='expense'?1:type==='income'?2:3)+')').classList.add('on');
   el('exp-fields-common').style.display = type === 'transfer' ? 'none' : '';
   el('exp-fields-transfer').style.display = type === 'transfer' ? '' : 'none';
+
+  if (!_expEditId) {
+    if (type === 'income') {
+      el('exp-form-sub').textContent = 'Возврат депозита, кэшбек, компенсация';
+    } else if (type === 'transfer') {
+      el('exp-form-sub').textContent = 'Перевод денег между участниками';
+    } else {
+      el('exp-form-sub').textContent = 'Добавить расход группы';
+    }
+  }
 
   if (type !== 'transfer') {
     renderCategoryChips();
@@ -1549,7 +1665,7 @@ function renderMemberSplits() {
       input = '';
     } else if (_expSplitType === 'parts') {
       const val = eSp ? Math.round(parseFloat(eSp.amount) / (amount||1) * _members.length) || 1 : 1;
-      input = '<input class="inp" type="number" inputmode="numeric" value="'+val+'" min="0" data-tg="'+m.tg_id+'" oninput="updateSplitPreview()">';
+      input = '<div class="stepper"><button class="stepper-btn" onclick="stepPart(\''+m.tg_id+'\',-1);event.preventDefault()">−</button><span class="stepper-val" data-tg="'+m.tg_id+'">'+val+'</span><button class="stepper-btn" onclick="stepPart(\''+m.tg_id+'\',1);event.preventDefault()">+</button></div>';
     } else {
       const val = eSp ? parseFloat(eSp.amount) : '';
       input = '<input class="inp" type="number" inputmode="decimal" value="'+(val||'')+'" placeholder="0" data-tg="'+m.tg_id+'" oninput="updateSplitPreview()">';
@@ -1558,6 +1674,15 @@ function renderMemberSplits() {
     return '<label class="member-check"><input type="checkbox" value="'+m.tg_id+'"'+(checked?' checked':'')+' onchange="updateSplitPreview()"><span class="member-check-name">'+name+'</span>'+input+result+'</label>';
   }).join('');
 
+  updateSplitPreview();
+}
+
+function stepPart(tgId, delta) {
+  const span = el('exp-members').querySelector('.stepper-val[data-tg="'+tgId+'"]');
+  if (!span) return;
+  let v = parseInt(span.textContent) + delta;
+  if (v < 0) v = 0;
+  span.textContent = v;
   updateSplitPreview();
 }
 
@@ -1575,13 +1700,13 @@ function updateSplitPreview() {
     if (_expSplitType === 'equal') {
       val = checked.length ? Math.round(amount / checked.length) : 0;
     } else if (_expSplitType === 'parts') {
-      const inputs = [...el('exp-members').querySelectorAll('input.inp[data-tg]')];
+      const steppers = [...el('exp-members').querySelectorAll('.stepper-val[data-tg]')];
       let totalParts = 0;
-      inputs.forEach(inp => {
-        const cb = inp.closest('.member-check').querySelector('input[type="checkbox"]');
-        if (cb && cb.checked) totalParts += (parseFloat(inp.value) || 0);
+      steppers.forEach(s => {
+        const cb = s.closest('.member-check').querySelector('input[type="checkbox"]');
+        if (cb && cb.checked) totalParts += (parseInt(s.textContent) || 0);
       });
-      const myParts = parseFloat(el('exp-members').querySelector('input.inp[data-tg="'+tg+'"]')?.value) || 0;
+      const myParts = parseInt(el('exp-members').querySelector('.stepper-val[data-tg="'+tg+'"]')?.textContent) || 0;
       val = totalParts ? Math.round(amount * myParts / totalParts) : 0;
     } else {
       val = parseFloat(el('exp-members').querySelector('input.inp[data-tg="'+tg+'"]')?.value) || 0;
@@ -1678,7 +1803,7 @@ async function submitExpense() {
 
   closeSheet('ov-expense');
   showSuccess();
-  toast(_expEditId ? 'Сохранено' : (_expOpType==='income'?'Доход добавлен':'Расход добавлен'));
+  toast(_expEditId ? 'Сохранено' : (_expOpType==='income'?'Возврат добавлен':'Расход добавлен'));
   _expEditId = null;
   await loadExpenses();
 }
@@ -1693,13 +1818,13 @@ function calcSplitAmounts(total, checkedIds) {
   }
 
   if (_expSplitType === 'parts') {
-    const inputs = el('exp-members').querySelectorAll('input[type="number"]');
+    const steppers = el('exp-members').querySelectorAll('.stepper-val[data-tg]');
     let totalParts = 0;
     const parts = [];
-    inputs.forEach(inp => {
-      if (checkedIds.includes(inp.dataset.tg)) {
-        const p = parseInt(inp.value) || 0;
-        parts.push({ tgId: inp.dataset.tg, part: p });
+    steppers.forEach(sp => {
+      if (checkedIds.includes(sp.dataset.tg)) {
+        const p = parseInt(sp.textContent) || 0;
+        parts.push({ tgId: sp.dataset.tg, part: p });
         totalParts += p;
       }
     });
