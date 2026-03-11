@@ -191,6 +191,11 @@ body{margin:0;padding:0;height:100%;font-family:'Manrope',system-ui,sans-serif;f
 .checkin-time{font-size:10px;color:var(--green);font-weight:600}
 
 /* ─── EXPENSES ─── */
+.exp-tabs{display:flex;gap:6px;margin-bottom:16px}
+.exp-tab{padding:8px 16px;border-radius:20px;border:1.5px solid var(--border);background:none;font-family:inherit;font-size:13px;font-weight:700;color:var(--sub);cursor:pointer;transition:all .15s}
+.exp-tab:active{transform:scale(.95)}
+.exp-tab.on{background:var(--acc);border-color:var(--acc);color:var(--acc-fg)}
+
 .exp-summary{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
 .exp-stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px}
 .exp-stat-val{font-size:22px;font-weight:800;margin-bottom:2px}
@@ -214,11 +219,25 @@ body{margin:0;padding:0;height:100%;font-family:'Manrope',system-ui,sans-serif;f
 .exp-cat-transport{background:#e3f2fd}
 .exp-cat-housing{background:#f3e5f5}
 .exp-cat-entertainment{background:#e8f5e9}
+.exp-cat-transfer{background:#e0f2f1}
+.exp-cat-income{background:var(--green-bg)}
 .exp-cat-other{background:var(--surface2)}
 .exp-info{flex:1;min-width:0}
 .exp-desc{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .exp-payer{font-size:12px;color:var(--sub)}
 .exp-amount{font-size:15px;font-weight:800;text-align:right;flex-shrink:0}
+
+.balance-item{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;margin-bottom:6px}
+.balance-name{font-size:14px;font-weight:600}
+.balance-val{font-size:15px;font-weight:800}
+.balance-sort{display:flex;gap:6px;margin-bottom:12px}
+
+.photos-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.photo-thumb{width:100%;aspect-ratio:1;object-fit:cover;border-radius:var(--r);border:1px solid var(--border);cursor:pointer}
+.photo-label{font-size:12px;font-weight:600;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+.exp-detail-actions{display:flex;gap:8px;margin-top:16px}
+.exp-detail-actions .btn{flex:1}
 
 /* ─── ADD EXPENSE SHEET ─── */
 .chip-row{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 12px}
@@ -230,6 +249,10 @@ body{margin:0;padding:0;height:100%;font-family:'Manrope',system-ui,sans-serif;f
 .member-check input[type="checkbox"]{width:20px;height:20px;accent-color:var(--accent)}
 .member-check-name{font-size:14px;font-weight:600;flex:1}
 .member-check-amount{font-size:13px;color:var(--sub);font-weight:600;width:70px;text-align:right}
+.member-check .inp{width:70px;padding:8px;font-size:13px;text-align:center}
+.exp-row{display:flex;gap:10px;margin-top:12px}
+.exp-row>div:first-child{flex:1}
+.exp-row .inp-select{width:90px}
 
 /* ─── PROFILE OVERLAY ─── */
 .profile-section{padding:20px 0}
@@ -398,18 +421,37 @@ body{margin:0;padding:0;height:100%;font-family:'Manrope',system-ui,sans-serif;f
       <div class="screen-inner">
         <div class="page-hdr">
           <div class="page-hdr-title">Расходы</div>
-          <button class="btn btn-accent btn-sm" onclick="showAddExpense()">+ Добавить</button>
+          <button class="btn btn-accent btn-sm" onclick="showAddOperation()">+ Добавить</button>
         </div>
 
-        <div class="exp-summary" id="exp-summary"></div>
-
-        <div id="settle-section" style="display:none">
-          <div class="exp-section-title">Кто кому должен</div>
-          <div id="settle-list"></div>
+        <div class="exp-tabs">
+          <button class="exp-tab on" onclick="switchExpTab(0)">Операции</button>
+          <button class="exp-tab" onclick="switchExpTab(1)">Баланс</button>
+          <button class="exp-tab" onclick="switchExpTab(2)">Фото</button>
         </div>
 
-        <div class="exp-section-title">История расходов</div>
-        <div id="expenses-list"></div>
+        <!-- SUB-TAB 0: OPERATIONS -->
+        <div id="exp-pane-ops">
+          <div class="exp-summary" id="exp-summary"></div>
+          <div id="expenses-list"></div>
+        </div>
+
+        <!-- SUB-TAB 1: BALANCE -->
+        <div id="exp-pane-bal" style="display:none">
+          <div class="exp-summary" id="bal-summary"></div>
+          <div id="settle-section" style="display:none">
+            <div class="exp-section-title">Кто кому должен</div>
+            <div id="settle-list"></div>
+          </div>
+          <div class="exp-section-title">Баланс участников</div>
+          <div class="balance-sort" id="bal-sort"></div>
+          <div id="balance-list"></div>
+        </div>
+
+        <!-- SUB-TAB 2: PHOTOS -->
+        <div id="exp-pane-photos" style="display:none">
+          <div id="photos-list"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -446,23 +488,96 @@ body{margin:0;padding:0;height:100%;font-family:'Manrope',system-ui,sans-serif;f
 <div class="overlay" id="ov-expense">
   <div class="sheet" id="sh-expense">
     <div class="sheet-handle" id="sh-expense-handle"></div>
-    <div class="sheet-title">Новый расход</div>
-    <div class="sheet-sub">Кто заплатил и за кого</div>
+    <div class="sheet-title" id="exp-form-title">Новая операция</div>
+    <div class="sheet-sub" id="exp-form-sub">Добавить расход, доход или перевод</div>
 
-    <div class="inp-label">Описание</div>
-    <input class="inp" id="exp-inp-desc" placeholder="Ужин в ресторане">
+    <div class="chip-row" id="exp-op-types">
+      <button class="chip on" onclick="pickOpType('expense')">💸 Расход</button>
+      <button class="chip" onclick="pickOpType('income')">💰 Доход</button>
+      <button class="chip" onclick="pickOpType('transfer')">🔄 Перевод</button>
+    </div>
 
-    <div class="inp-label" style="margin-top:12px">Сумма, ₽</div>
-    <input class="inp" id="exp-inp-amount" type="number" inputmode="numeric" placeholder="0">
+    <!-- EXPENSE / INCOME fields -->
+    <div id="exp-fields-common">
+      <div class="inp-label">Описание</div>
+      <input class="inp" id="exp-inp-desc" placeholder="Ужин в ресторане">
 
-    <div class="inp-label" style="margin-top:12px">Категория</div>
-    <div class="chip-row" id="exp-cats"></div>
+      <div class="inp-label" style="margin-top:12px">Категория</div>
+      <div class="chip-row" id="exp-cats"></div>
 
-    <div class="inp-label" style="margin-top:4px">Кто заплатил</div>
-    <div class="chip-row" id="exp-payers"></div>
+      <div class="inp-label" style="margin-top:12px">Фото чека</div>
+      <div id="exp-photo-wrap" style="margin-bottom:12px">
+        <button class="btn btn-ghost btn-sm" onclick="el('exp-photo-input').click()">📷 Сделать фото</button>
+        <input type="file" id="exp-photo-input" accept="image/*" capture="environment" style="display:none" onchange="onPhotoSelected(this)">
+        <div id="exp-photo-preview" style="display:none;margin-top:8px;position:relative">
+          <img id="exp-photo-img" style="max-height:120px;border-radius:8px;border:1px solid var(--border)">
+          <button style="position:absolute;top:4px;right:4px;width:24px;height:24px;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;border:none;font-size:14px;cursor:pointer" onclick="clearPhoto()">&times;</button>
+        </div>
+      </div>
 
-    <div class="inp-label" style="margin-top:4px">Разделить между</div>
-    <div id="exp-members"></div>
+      <div class="exp-row">
+        <div>
+          <div class="inp-label">Сумма</div>
+          <input class="inp" id="exp-inp-amount" type="number" inputmode="decimal" placeholder="0" oninput="updateSplitPreview()">
+        </div>
+        <div>
+          <div class="inp-label">Валюта</div>
+          <select class="inp inp-select" id="exp-inp-currency">
+            <option value="RUB">₽ RUB</option>
+            <option value="USD">$ USD</option>
+            <option value="EUR">€ EUR</option>
+            <option value="THB">฿ THB</option>
+            <option value="TRY">₺ TRY</option>
+            <option value="GEL">₾ GEL</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="inp-label" style="margin-top:12px">Дата</div>
+      <input class="inp" id="exp-inp-date" type="date">
+
+      <div class="inp-label" style="margin-top:12px">Кто заплатил</div>
+      <div class="chip-row" id="exp-payers"></div>
+
+      <div class="inp-label" style="margin-top:4px">Разделить</div>
+      <div class="chip-row" id="exp-split-types">
+        <button class="chip on" onclick="pickSplitType('equal')">Поровну</button>
+        <button class="chip" onclick="pickSplitType('parts')">По долям</button>
+        <button class="chip" onclick="pickSplitType('amounts')">По суммам</button>
+      </div>
+
+      <div id="exp-members"></div>
+    </div>
+
+    <!-- TRANSFER fields -->
+    <div id="exp-fields-transfer" style="display:none">
+      <div class="exp-row">
+        <div>
+          <div class="inp-label">Сумма</div>
+          <input class="inp" id="exp-tr-amount" type="number" inputmode="decimal" placeholder="0">
+        </div>
+        <div>
+          <div class="inp-label">Валюта</div>
+          <select class="inp inp-select" id="exp-tr-currency">
+            <option value="RUB">₽ RUB</option>
+            <option value="USD">$ USD</option>
+            <option value="EUR">€ EUR</option>
+            <option value="THB">฿ THB</option>
+            <option value="TRY">₺ TRY</option>
+            <option value="GEL">₾ GEL</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="inp-label" style="margin-top:12px">Дата</div>
+      <input class="inp" id="exp-tr-date" type="date">
+
+      <div class="inp-label" style="margin-top:12px">От кого</div>
+      <div class="chip-row" id="exp-tr-from"></div>
+
+      <div class="inp-label" style="margin-top:4px">Кому</div>
+      <div class="chip-row" id="exp-tr-to"></div>
+    </div>
 
     <button class="btn btn-accent" style="margin-top:16px" onclick="submitExpense()">Сохранить</button>
     <button class="btn btn-ghost" style="margin-top:8px" onclick="closeSheet('ov-expense')">Отмена</button>
@@ -477,8 +592,16 @@ body{margin:0;padding:0;height:100%;font-family:'Manrope',system-ui,sans-serif;f
     <div class="sheet-handle" id="sh-exp-detail-handle"></div>
     <div class="sheet-title" id="exp-det-title"></div>
     <div class="sheet-sub" id="exp-det-sub"></div>
+    <div id="exp-det-photo" style="display:none;margin-bottom:12px">
+      <img id="exp-det-photo-img" style="max-height:160px;border-radius:8px;border:1px solid var(--border)">
+    </div>
     <div id="exp-det-splits"></div>
-    <button class="btn btn-ghost" style="margin-top:16px" onclick="closeSheet('ov-exp-detail')">Закрыть</button>
+    <div class="exp-detail-actions" id="exp-det-actions">
+      <button class="btn btn-ghost" onclick="editExpense()">Изменить</button>
+      <button class="btn btn-ghost" onclick="duplicateExpense()">Копия</button>
+      <button class="btn btn-ghost" style="color:var(--red)" onclick="deleteExpense()">Удалить</button>
+    </div>
+    <button class="btn btn-ghost" style="margin-top:8px" onclick="closeSheet('ov-exp-detail')">Закрыть</button>
   </div>
 </div>
 
@@ -531,6 +654,9 @@ let _tgCode=null, _pollTimer=null, _notifTimer=null;
 let _members=[], _expenses=[], _splits=[], _settlements=[], _scheduleEvents=[], _places=[], _messages=[], _checkins=[];
 let _selDay=null, _tripDays=[];
 let _expCat='food', _expPayer=null;
+let _expOpType='expense', _expSplitType='equal', _expEditId=null, _expSubTab=0;
+let _expTransferFrom=null, _expTransferTo=null, _expPhotoFile=null, _expDetailId=null;
+let _expBalSort='name';
 let _supabase=null;
 
 const el = id => document.getElementById(id);
@@ -1044,17 +1170,99 @@ async function doCheckin() {
 }
 
 /* ═══════════════════════════════════════════
+   EXPENSES: SUB-TABS
+═══════════════════════════════════════════ */
+function switchExpTab(idx) {
+  _expSubTab = idx;
+  document.querySelectorAll('.exp-tab').forEach((t,i) => t.classList.toggle('on', i===idx));
+  el('exp-pane-ops').style.display = idx===0 ? '' : 'none';
+  el('exp-pane-bal').style.display = idx===1 ? '' : 'none';
+  el('exp-pane-photos').style.display = idx===2 ? '' : 'none';
+}
+
+/* ═══════════════════════════════════════════
    RENDER: EXPENSES
 ═══════════════════════════════════════════ */
 function renderExpenses() {
+  renderExpensesList();
+  renderBalance();
+  renderPhotos();
+}
+
+function renderExpensesList() {
   const balances = calcBalances();
   const myBal = balances[S.user?.tgId] || 0;
-
-  // Summary
-  const totalSpent = _expenses.reduce((s,e) => s + parseFloat(e.amount), 0);
-  const myPaid = _expenses.filter(e => e.paid_by === S.user?.tgId).reduce((s,e) => s + parseFloat(e.amount), 0);
+  const onlyExpenses = _expenses.filter(e => (e.op_type||'expense') === 'expense');
+  const totalSpent = onlyExpenses.reduce((s,e) => s + parseFloat(e.amount), 0);
 
   el('exp-summary').innerHTML =
+    '<div class="exp-stat"><div class="exp-stat-val">'+fmtMoney(totalSpent)+'</div><div class="exp-stat-lbl">Всего потрачено</div></div>' +
+    '<div class="exp-stat"><div class="exp-stat-val '+(myBal>=0?'green':'red')+'">'+fmtMoney(Math.abs(myBal))+'</div><div class="exp-stat-lbl">'+(myBal>=0?'Тебе должны':'Ты должен')+'</div></div>';
+
+  if (!_expenses.length) {
+    el('expenses-list').innerHTML = '<div class="empty-wrap"><div class="empty-illustration">💸</div><div class="empty-title">Операций пока нет</div><div class="empty-sub">Добавь первый расход, доход или перевод.</div><button class="empty-cta" onclick="showAddOperation()">+ Добавить</button></div>';
+    return;
+  }
+
+  const catIcons = { food:'🍽', transport:'🚕', housing:'🏨', entertainment:'🎭', other:'📦' };
+  const today = new Date(); today.setHours(0,0,0,0);
+  const yesterday = new Date(today); yesterday.setDate(yesterday.getDate()-1);
+  const dayLabels = ['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
+  const monLabels = ['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
+  let lastDateKey = '';
+
+  el('expenses-list').innerHTML = _expenses.map(e => {
+    const opType = e.op_type || 'expense';
+    const cur = e.currency || 'RUB';
+    let icon, catCls, desc, subText;
+
+    if (opType === 'transfer') {
+      icon = '🔄'; catCls = 'exp-cat-transfer';
+      desc = memberName(e.paid_by) + ' → ' + memberName(e.transfer_to);
+      subText = 'Перевод';
+    } else if (opType === 'income') {
+      icon = '💰'; catCls = 'exp-cat-income';
+      desc = e.description;
+      const splits = _splits.filter(s => s.expense_id === e.id);
+      subText = esc(memberName(e.paid_by)) + ' &middot; ' + splits.length + ' чел.';
+    } else {
+      icon = catIcons[e.category] || '📦';
+      catCls = 'exp-cat-'+(e.category||'other');
+      desc = e.description;
+      const splits = _splits.filter(s => s.expense_id === e.id);
+      subText = esc(memberName(e.paid_by)) + ' &middot; ' + splits.length + ' чел.';
+    }
+
+    const dateSrc = e.expense_date || e.created_at;
+    const d = new Date(dateSrc); d.setHours(0,0,0,0);
+    const dateKey = d.toISOString().split('T')[0];
+    let groupHtml = '';
+    if (dateKey !== lastDateKey) {
+      lastDateKey = dateKey;
+      let label;
+      if (d.getTime() === today.getTime()) label = 'Сегодня';
+      else if (d.getTime() === yesterday.getTime()) label = 'Вчера';
+      else label = dayLabels[d.getDay()] + ', ' + d.getDate() + ' ' + monLabels[d.getMonth()];
+      groupHtml = '<div class="exp-date-group">'+label+'</div>';
+    }
+
+    const sign = opType === 'income' ? '+' : '';
+    const amtCls = opType === 'income' ? ' style="color:var(--green)"' : '';
+
+    return groupHtml+'<div class="card exp-item" onclick="showExpDetail(\''+e.id+'\')"><div class="exp-cat-icon '+catCls+'">'+icon+'</div><div class="exp-info"><div class="exp-desc">'+esc(desc)+'</div><div class="exp-payer">'+subText+'</div></div><div class="exp-amount"'+amtCls+'>'+sign+fmtMoney(parseFloat(e.amount), cur)+'</div></div>';
+  }).join('');
+}
+
+/* ═══════════════════════════════════════════
+   RENDER: BALANCE
+═══════════════════════════════════════════ */
+function renderBalance() {
+  const balances = calcBalances();
+  const myBal = balances[S.user?.tgId] || 0;
+  const onlyExpenses = _expenses.filter(e => (e.op_type||'expense') === 'expense');
+  const totalSpent = onlyExpenses.reduce((s,e) => s + parseFloat(e.amount), 0);
+
+  el('bal-summary').innerHTML =
     '<div class="exp-stat"><div class="exp-stat-val">'+fmtMoney(totalSpent)+'</div><div class="exp-stat-lbl">Всего потрачено</div></div>' +
     '<div class="exp-stat"><div class="exp-stat-val '+(myBal>=0?'green':'red')+'">'+fmtMoney(Math.abs(myBal))+'</div><div class="exp-stat-lbl">'+(myBal>=0?'Тебе должны':'Ты должен')+'</div></div>';
 
@@ -1072,55 +1280,62 @@ function renderExpenses() {
     el('settle-section').style.display = 'none';
   }
 
-  // Expense list
-  if (!_expenses.length) {
-    el('expenses-list').innerHTML = '<div class="empty-wrap"><div class="empty-illustration">💸</div><div class="empty-title">Расходов пока нет</div><div class="empty-sub">Добавь первый общий расход, чтобы начать делить.</div><button class="empty-cta" onclick="showAddExpense()">+ Добавить расход</button></div>';
-    return;
-  }
+  // Sort buttons
+  el('bal-sort').innerHTML = [['name','По имени'],['low','Минимум'],['high','Максимум']].map(([k,l]) =>
+    '<button class="chip'+(k===_expBalSort?' on':'')+'" onclick="sortBalance(\''+k+'\')">'+l+'</button>'
+  ).join('');
 
-  const catIcons = { food:'🍽', transport:'🚕', housing:'🏨', entertainment:'🎭', other:'📦' };
-  const today = new Date(); today.setHours(0,0,0,0);
-  const yesterday = new Date(today); yesterday.setDate(yesterday.getDate()-1);
-  const dayLabels = ['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
-  const monLabels = ['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
-  let lastDateKey = '';
+  // Balance list
+  let entries = _members.map(m => ({ tgId: m.tg_id, name: m.display_name||m.tg_name||'?', bal: balances[m.tg_id]||0 }));
+  if (_expBalSort === 'low') entries.sort((a,b) => a.bal - b.bal);
+  else if (_expBalSort === 'high') entries.sort((a,b) => b.bal - a.bal);
+  else entries.sort((a,b) => a.name.localeCompare(b.name));
 
-  el('expenses-list').innerHTML = _expenses.map(e => {
-    const icon = catIcons[e.category] || '📦';
-    const catCls = 'exp-cat-'+(e.category||'other');
-    const payer = memberName(e.paid_by);
-    const splits = _splits.filter(s => s.expense_id === e.id);
-    const pplCount = splits.length;
-
-    const d = new Date(e.created_at); d.setHours(0,0,0,0);
-    const dateKey = d.toISOString().split('T')[0];
-    let groupHtml = '';
-    if (dateKey !== lastDateKey) {
-      lastDateKey = dateKey;
-      let label;
-      if (d.getTime() === today.getTime()) label = 'Сегодня';
-      else if (d.getTime() === yesterday.getTime()) label = 'Вчера';
-      else label = dayLabels[d.getDay()] + ', ' + d.getDate() + ' ' + monLabels[d.getMonth()];
-      groupHtml = '<div class="exp-date-group">'+label+'</div>';
-    }
-
-    return groupHtml+'<div class="card exp-item" onclick="showExpDetail(\''+e.id+'\')"><div class="exp-cat-icon '+catCls+'">'+icon+'</div><div class="exp-info"><div class="exp-desc">'+esc(e.description)+'</div><div class="exp-payer">'+esc(payer)+' &middot; '+pplCount+' чел.</div></div><div class="exp-amount">'+fmtMoney(parseFloat(e.amount))+'</div></div>';
-  }).join('');
+  el('balance-list').innerHTML = entries.map(e =>
+    '<div class="card balance-item"><span class="balance-name">'+esc(e.name)+'</span><span class="balance-val '+(e.bal>=0?'green':'red')+'">'+( e.bal>=0?'+':'')+fmtMoney(Math.round(e.bal))+'</span></div>'
+  ).join('');
 }
 
+function sortBalance(key) {
+  _expBalSort = key;
+  renderBalance();
+}
+
+/* ═══════════════════════════════════════════
+   RENDER: PHOTOS
+═══════════════════════════════════════════ */
+function renderPhotos() {
+  const withPhotos = _expenses.filter(e => e.photo_url);
+  if (!withPhotos.length) {
+    el('photos-list').innerHTML = '<div class="empty-wrap"><div class="empty-illustration">📷</div><div class="empty-title">Фото нет</div><div class="empty-sub">Добавь фото чека при создании расхода.</div></div>';
+    return;
+  }
+  el('photos-list').innerHTML = '<div class="photos-grid">' + withPhotos.map(e =>
+    '<div onclick="showExpDetail(\''+e.id+'\')"><img class="photo-thumb" src="'+esc(e.photo_url)+'" loading="lazy"><div class="photo-label">'+esc(e.description)+'</div></div>'
+  ).join('') + '</div>';
+}
+
+/* ═══════════════════════════════════════════
+   BALANCE CALCULATIONS
+═══════════════════════════════════════════ */
 function calcBalances() {
   const bal = {};
   _members.forEach(m => bal[m.tg_id] = 0);
 
   _expenses.forEach(e => {
-    bal[e.paid_by] = (bal[e.paid_by]||0) + parseFloat(e.amount);
+    const opType = e.op_type || 'expense';
+    if (opType === 'transfer') {
+      bal[e.paid_by] = (bal[e.paid_by]||0) + parseFloat(e.amount);
+      bal[e.transfer_to] = (bal[e.transfer_to]||0) - parseFloat(e.amount);
+    } else {
+      bal[e.paid_by] = (bal[e.paid_by]||0) + parseFloat(e.amount);
+    }
   });
 
   _splits.forEach(sp => {
     bal[sp.member_tg_id] = (bal[sp.member_tg_id]||0) - parseFloat(sp.amount);
   });
 
-  // Subtract settlements
   _settlements.forEach(s => {
     bal[s.from_tg_id] = (bal[s.from_tg_id]||0) + parseFloat(s.amount);
     bal[s.to_tg_id] = (bal[s.to_tg_id]||0) - parseFloat(s.amount);
@@ -1168,31 +1383,123 @@ async function doSettle(fromId, toId, amount) {
 }
 
 /* ═══════════════════════════════════════════
-   ADD EXPENSE
+   ADD / EDIT OPERATION
 ═══════════════════════════════════════════ */
-function showAddExpense() {
+function showAddOperation(editId) {
+  _expEditId = editId || null;
+  _expOpType = 'expense';
+  _expSplitType = 'equal';
   _expCat = 'food';
   _expPayer = S.user?.tgId;
+  _expTransferFrom = S.user?.tgId;
+  _expTransferTo = _members.length > 1 ? _members.find(m => m.tg_id !== S.user?.tgId)?.tg_id : null;
+  _expPhotoFile = null;
 
-  // Render categories
+  el('exp-photo-preview').style.display = 'none';
+  el('exp-inp-date').value = new Date().toISOString().split('T')[0];
+  el('exp-tr-date').value = new Date().toISOString().split('T')[0];
+
+  if (_expEditId) {
+    const exp = _expenses.find(e => e.id === _expEditId);
+    if (!exp) return;
+    _expOpType = exp.op_type || 'expense';
+    _expCat = exp.category || 'food';
+    _expPayer = exp.paid_by;
+    _expSplitType = exp.split_type || 'equal';
+
+    el('exp-form-title').textContent = 'Редактировать';
+    el('exp-form-sub').textContent = '';
+
+    if (_expOpType === 'transfer') {
+      _expTransferFrom = exp.paid_by;
+      _expTransferTo = exp.transfer_to;
+      el('exp-tr-amount').value = parseFloat(exp.amount);
+      el('exp-tr-currency').value = exp.currency || 'RUB';
+      el('exp-tr-date').value = exp.expense_date || new Date().toISOString().split('T')[0];
+    } else {
+      el('exp-inp-desc').value = exp.description;
+      el('exp-inp-amount').value = parseFloat(exp.amount);
+      el('exp-inp-currency').value = exp.currency || 'RUB';
+      el('exp-inp-date').value = exp.expense_date || new Date().toISOString().split('T')[0];
+      if (exp.photo_url) {
+        el('exp-photo-img').src = exp.photo_url;
+        el('exp-photo-preview').style.display = '';
+      }
+    }
+  } else {
+    el('exp-form-title').textContent = 'Новая операция';
+    el('exp-form-sub').textContent = 'Добавить расход, доход или перевод';
+    el('exp-inp-desc').value = '';
+    el('exp-inp-amount').value = '';
+    el('exp-inp-currency').value = 'RUB';
+    el('exp-tr-amount').value = '';
+    el('exp-tr-currency').value = 'RUB';
+  }
+
+  renderOpTypeChips();
+  pickOpType(_expOpType);
+  openSheet('ov-expense');
+  if (_expOpType !== 'transfer') setTimeout(() => el('exp-inp-desc').focus(), 350);
+}
+
+function renderOpTypeChips() {
+  const types = [['expense','💸 Расход'],['income','💰 Доход'],['transfer','🔄 Перевод']];
+  el('exp-op-types').innerHTML = types.map(([k,l]) =>
+    '<button class="chip'+(k===_expOpType?' on':'')+'" onclick="pickOpType(\''+k+'\')">'+l+'</button>'
+  ).join('');
+}
+
+function pickOpType(type) {
+  _expOpType = type;
+  el('exp-op-types').querySelectorAll('.chip').forEach(c => c.classList.remove('on'));
+  el('exp-op-types').querySelector('.chip:nth-child('+(type==='expense'?1:type==='income'?2:3)+')').classList.add('on');
+  el('exp-fields-common').style.display = type === 'transfer' ? 'none' : '';
+  el('exp-fields-transfer').style.display = type === 'transfer' ? '' : 'none';
+
+  if (type !== 'transfer') {
+    renderCategoryChips();
+    renderPayerChips();
+    renderSplitTypeChips();
+    renderMemberSplits();
+  } else {
+    renderTransferChips();
+  }
+}
+
+function renderCategoryChips() {
   el('exp-cats').innerHTML = CATS.map(c =>
     '<button class="chip'+(c.id===_expCat?' on':'')+'" onclick="pickExpCat(\''+c.id+'\',this)">'+c.icon+' '+c.label+'</button>'
   ).join('');
+}
 
-  // Render payers
+function renderPayerChips() {
   el('exp-payers').innerHTML = _members.map(m =>
     '<button class="chip'+(m.tg_id===_expPayer?' on':'')+'" onclick="pickExpPayer(\''+m.tg_id+'\',this)">'+esc(m.display_name||m.tg_name||'?')+'</button>'
   ).join('');
+}
 
-  // Render member checkboxes
-  el('exp-members').innerHTML = _members.map(m =>
-    '<label class="member-check"><input type="checkbox" value="'+m.tg_id+'" checked><span class="member-check-name">'+esc(m.display_name||m.tg_name||'?')+'</span></label>'
+function renderSplitTypeChips() {
+  const types = [['equal','Поровну'],['parts','По долям'],['amounts','По суммам']];
+  el('exp-split-types').innerHTML = types.map(([k,l]) =>
+    '<button class="chip'+(k===_expSplitType?' on':'')+'" onclick="pickSplitType(\''+k+'\')">'+l+'</button>'
   ).join('');
+}
 
-  el('exp-inp-desc').value = '';
-  el('exp-inp-amount').value = '';
-  openSheet('ov-expense');
-  setTimeout(() => el('exp-inp-desc').focus(), 350);
+function renderTransferChips() {
+  el('exp-tr-from').innerHTML = _members.map(m =>
+    '<button class="chip'+(m.tg_id===_expTransferFrom?' on':'')+'" onclick="pickTransfer(\'from\',\''+m.tg_id+'\',this)">'+esc(m.display_name||m.tg_name||'?')+'</button>'
+  ).join('');
+  el('exp-tr-to').innerHTML = _members.map(m =>
+    '<button class="chip'+(m.tg_id===_expTransferTo?' on':'')+'" onclick="pickTransfer(\'to\',\''+m.tg_id+'\',this)">'+esc(m.display_name||m.tg_name||'?')+'</button>'
+  ).join('');
+}
+
+function pickTransfer(dir, tgId, btn) {
+  if (dir === 'from') _expTransferFrom = tgId;
+  else _expTransferTo = tgId;
+  const container = dir === 'from' ? el('exp-tr-from') : el('exp-tr-to');
+  container.querySelectorAll('.chip').forEach(c => c.classList.remove('on'));
+  btn.classList.add('on');
 }
 
 function pickExpCat(cat, btn) {
@@ -1207,64 +1514,292 @@ function pickExpPayer(tgId, btn) {
   btn.classList.add('on');
 }
 
+function pickSplitType(type) {
+  _expSplitType = type;
+  el('exp-split-types').querySelectorAll('.chip').forEach(c => c.classList.remove('on'));
+  const idx = type==='equal'?0:type==='parts'?1:2;
+  el('exp-split-types').querySelectorAll('.chip')[idx].classList.add('on');
+  renderMemberSplits();
+}
+
+function renderMemberSplits() {
+  const editSplits = _expEditId ? _splits.filter(s => s.expense_id === _expEditId) : [];
+  const amount = parseFloat(el('exp-inp-amount').value) || 0;
+
+  el('exp-members').innerHTML = _members.map(m => {
+    const eSp = editSplits.find(s => s.member_tg_id === m.tg_id);
+    const checked = _expEditId ? !!eSp : true;
+    const name = esc(m.display_name||m.tg_name||'?');
+    let extra = '';
+
+    if (_expSplitType === 'equal') {
+      extra = '<span class="member-check-amount" data-tg="'+m.tg_id+'"></span>';
+    } else if (_expSplitType === 'parts') {
+      const val = eSp ? Math.round(parseFloat(eSp.amount) / (amount||1) * _members.length) || 1 : 1;
+      extra = '<input class="inp" type="number" inputmode="numeric" value="'+val+'" min="0" style="width:60px;padding:8px;font-size:13px;text-align:center" data-tg="'+m.tg_id+'" onchange="updateSplitPreview()">';
+    } else {
+      const val = eSp ? parseFloat(eSp.amount) : '';
+      extra = '<input class="inp" type="number" inputmode="decimal" value="'+val+'" placeholder="0" style="width:70px;padding:8px;font-size:13px;text-align:center" data-tg="'+m.tg_id+'">';
+    }
+
+    return '<label class="member-check"><input type="checkbox" value="'+m.tg_id+'"'+(checked?' checked':'')+' onchange="updateSplitPreview()"><span class="member-check-name">'+name+'</span>'+extra+'</label>';
+  }).join('');
+
+  updateSplitPreview();
+}
+
+function updateSplitPreview() {
+  if (_expSplitType !== 'equal') return;
+  const amount = parseFloat(el('exp-inp-amount').value) || 0;
+  const checked = [...el('exp-members').querySelectorAll('input[type="checkbox"]:checked')].map(i => i.value);
+  const share = checked.length ? Math.round(amount / checked.length) : 0;
+  el('exp-members').querySelectorAll('.member-check-amount').forEach(sp => {
+    sp.textContent = checked.includes(sp.dataset.tg) && amount ? fmtMoney(share) : '';
+  });
+}
+
+/* ═══════════════════════════════════════════
+   PHOTO
+═══════════════════════════════════════════ */
+function onPhotoSelected(input) {
+  if (!input.files || !input.files[0]) return;
+  _expPhotoFile = input.files[0];
+  const reader = new FileReader();
+  reader.onload = e => {
+    el('exp-photo-img').src = e.target.result;
+    el('exp-photo-preview').style.display = '';
+  };
+  reader.readAsDataURL(_expPhotoFile);
+}
+
+function clearPhoto() {
+  _expPhotoFile = null;
+  el('exp-photo-preview').style.display = 'none';
+  el('exp-photo-input').value = '';
+}
+
+async function uploadPhoto() {
+  if (!_expPhotoFile) return null;
+  const ext = _expPhotoFile.name.split('.').pop() || 'jpg';
+  const fname = crypto.randomUUID() + '.' + ext;
+  const r = await fetch(`${SB_URL}/storage/v1/object/receipts/${fname}`, {
+    method: 'POST',
+    headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': _expPhotoFile.type },
+    body: _expPhotoFile
+  });
+  if (!r.ok) return null;
+  return `${SB_URL}/storage/v1/object/public/receipts/${fname}`;
+}
+
+/* ═══════════════════════════════════════════
+   SUBMIT EXPENSE
+═══════════════════════════════════════════ */
 async function submitExpense() {
+  if (_expOpType === 'transfer') return submitTransfer();
+
   const desc = el('exp-inp-desc').value.trim();
   const amount = parseFloat(el('exp-inp-amount').value);
+  const currency = el('exp-inp-currency').value;
+  const expDate = el('exp-inp-date').value;
   if (!desc) { toast('Введи описание'); return; }
   if (!amount || amount <= 0) { toast('Введи сумму'); return; }
   if (!_expPayer) { toast('Выбери кто заплатил'); return; }
 
-  const checked = [...el('exp-members').querySelectorAll('input:checked')].map(i => i.value);
+  const checked = [...el('exp-members').querySelectorAll('input[type="checkbox"]:checked')].map(i => i.value);
   if (!checked.length) { toast('Выбери участников'); return; }
 
-  // Create expense
-  const expRows = await sbPost('expenses', {
+  const photoUrl = await uploadPhoto();
+
+  const data = {
     trip_id: S.tripId,
     paid_by: _expPayer,
     amount: amount,
     description: desc,
     category: _expCat,
-    split_type: 'equal',
-    created_by: S.user.tgId,
-    created_at: new Date().toISOString()
-  });
+    split_type: _expSplitType,
+    op_type: _expOpType,
+    currency: currency,
+    expense_date: expDate || null,
+    photo_url: photoUrl || (_expEditId ? (_expenses.find(e=>e.id===_expEditId)?.photo_url||null) : null),
+    created_by: S.user.tgId
+  };
 
-  const exp = expRows?.[0];
-  if (!exp) { toast('Ошибка сохранения'); return; }
+  let expId;
+  if (_expEditId) {
+    await sbPatch('expenses', 'id=eq.'+_expEditId, data);
+    await sbDelete('splits', 'expense_id=eq.'+_expEditId);
+    expId = _expEditId;
+  } else {
+    data.created_at = new Date().toISOString();
+    const expRows = await sbPost('expenses', data);
+    const exp = expRows?.[0];
+    if (!exp) { toast('Ошибка сохранения'); return; }
+    expId = exp.id;
+  }
 
-  // Create splits (equal)
-  const share = Math.round(amount * 100 / checked.length) / 100;
-  const splits = checked.map((tgId, i) => ({
-    expense_id: exp.id,
-    member_tg_id: tgId,
-    amount: i === 0 ? (amount - share * (checked.length - 1)) : share // first gets remainder
-  }));
-
-  await sbPost('splits', splits);
+  // Create splits
+  const splits = calcSplitAmounts(amount, checked);
+  const splitRows = splits.map(s => ({ expense_id: expId, member_tg_id: s.tgId, amount: s.amount }));
+  await sbPost('splits', splitRows);
 
   closeSheet('ov-expense');
   showSuccess();
-  toast('Расход добавлен');
+  toast(_expEditId ? 'Сохранено' : (_expOpType==='income'?'Доход добавлен':'Расход добавлен'));
+  _expEditId = null;
+  await loadExpenses();
+}
+
+function calcSplitAmounts(total, checkedIds) {
+  if (_expSplitType === 'equal') {
+    const share = Math.round(total * 100 / checkedIds.length) / 100;
+    return checkedIds.map((tgId, i) => ({
+      tgId,
+      amount: i === 0 ? (total - share * (checkedIds.length - 1)) : share
+    }));
+  }
+
+  if (_expSplitType === 'parts') {
+    const inputs = el('exp-members').querySelectorAll('input[type="number"]');
+    let totalParts = 0;
+    const parts = [];
+    inputs.forEach(inp => {
+      if (checkedIds.includes(inp.dataset.tg)) {
+        const p = parseInt(inp.value) || 0;
+        parts.push({ tgId: inp.dataset.tg, part: p });
+        totalParts += p;
+      }
+    });
+    if (totalParts === 0) totalParts = 1;
+    let remainder = total;
+    return parts.map((p, i) => {
+      const amt = i === parts.length-1 ? remainder : Math.round(total * p.part / totalParts * 100) / 100;
+      remainder -= amt;
+      return { tgId: p.tgId, amount: amt };
+    });
+  }
+
+  // amounts
+  const inputs = el('exp-members').querySelectorAll('input[type="number"]');
+  const result = [];
+  inputs.forEach(inp => {
+    if (checkedIds.includes(inp.dataset.tg)) {
+      result.push({ tgId: inp.dataset.tg, amount: parseFloat(inp.value) || 0 });
+    }
+  });
+  return result;
+}
+
+async function submitTransfer() {
+  const amount = parseFloat(el('exp-tr-amount').value);
+  const currency = el('exp-tr-currency').value;
+  const expDate = el('exp-tr-date').value;
+  if (!amount || amount <= 0) { toast('Введи сумму'); return; }
+  if (!_expTransferFrom) { toast('Выбери от кого'); return; }
+  if (!_expTransferTo) { toast('Выбери кому'); return; }
+  if (_expTransferFrom === _expTransferTo) { toast('Нельзя перевести себе'); return; }
+
+  const data = {
+    trip_id: S.tripId,
+    paid_by: _expTransferFrom,
+    transfer_to: _expTransferTo,
+    amount: amount,
+    description: 'Перевод',
+    category: 'other',
+    split_type: 'equal',
+    op_type: 'transfer',
+    currency: currency,
+    expense_date: expDate || null,
+    created_by: S.user.tgId
+  };
+
+  if (_expEditId) {
+    await sbPatch('expenses', 'id=eq.'+_expEditId, data);
+    await sbDelete('splits', 'expense_id=eq.'+_expEditId);
+  } else {
+    data.created_at = new Date().toISOString();
+    await sbPost('expenses', data);
+  }
+
+  closeSheet('ov-expense');
+  showSuccess();
+  toast(_expEditId ? 'Сохранено' : 'Перевод добавлен');
+  _expEditId = null;
   await loadExpenses();
 }
 
 /* ═══════════════════════════════════════════
-   EXPENSE DETAIL
+   EXPENSE DETAIL + EDIT/DUPLICATE/DELETE
 ═══════════════════════════════════════════ */
 function showExpDetail(expId) {
   const exp = _expenses.find(e => e.id === expId);
   if (!exp) return;
+  _expDetailId = expId;
 
-  const t = new Date(exp.created_at);
-  el('exp-det-title').textContent = exp.description;
-  el('exp-det-sub').textContent = fmtMoney(parseFloat(exp.amount)) + ' — ' + memberName(exp.paid_by) + ' — ' + pad(t.getDate())+'.'+pad(t.getMonth()+1)+' '+pad(t.getHours())+':'+pad(t.getMinutes());
+  const opType = exp.op_type || 'expense';
+  const cur = exp.currency || 'RUB';
+  const t = new Date(exp.expense_date || exp.created_at);
 
-  const splits = _splits.filter(s => s.expense_id === expId);
-  el('exp-det-splits').innerHTML = splits.map(sp =>
-    '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)"><span style="font-size:14px;font-weight:600">'+esc(memberName(sp.member_tg_id))+'</span><span style="font-size:14px;font-weight:700">'+fmtMoney(parseFloat(sp.amount))+'</span></div>'
-  ).join('');
+  if (opType === 'transfer') {
+    el('exp-det-title').textContent = 'Перевод';
+    el('exp-det-sub').textContent = fmtMoney(parseFloat(exp.amount), cur) + ' — ' + memberName(exp.paid_by) + ' → ' + memberName(exp.transfer_to) + ' — ' + pad(t.getDate())+'.'+pad(t.getMonth()+1);
+    el('exp-det-splits').innerHTML = '';
+  } else {
+    el('exp-det-title').textContent = exp.description;
+    el('exp-det-sub').textContent = fmtMoney(parseFloat(exp.amount), cur) + ' — ' + memberName(exp.paid_by) + ' — ' + pad(t.getDate())+'.'+pad(t.getMonth()+1);
+    const splits = _splits.filter(s => s.expense_id === expId);
+    el('exp-det-splits').innerHTML = splits.map(sp =>
+      '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)"><span style="font-size:14px;font-weight:600">'+esc(memberName(sp.member_tg_id))+'</span><span style="font-size:14px;font-weight:700">'+fmtMoney(parseFloat(sp.amount), cur)+'</span></div>'
+    ).join('');
+  }
+
+  if (exp.photo_url) {
+    el('exp-det-photo').style.display = '';
+    el('exp-det-photo-img').src = exp.photo_url;
+  } else {
+    el('exp-det-photo').style.display = 'none';
+  }
 
   openSheet('ov-exp-detail');
+}
+
+function editExpense() {
+  closeSheet('ov-exp-detail');
+  setTimeout(() => showAddOperation(_expDetailId), 300);
+}
+
+async function duplicateExpense() {
+  const exp = _expenses.find(e => e.id === _expDetailId);
+  if (!exp) return;
+
+  const data = {
+    trip_id: exp.trip_id, paid_by: exp.paid_by, amount: exp.amount,
+    description: exp.description, category: exp.category, split_type: exp.split_type,
+    op_type: exp.op_type || 'expense', currency: exp.currency || 'RUB',
+    expense_date: exp.expense_date, transfer_to: exp.transfer_to,
+    photo_url: exp.photo_url, created_by: S.user.tgId,
+    created_at: new Date().toISOString()
+  };
+  const rows = await sbPost('expenses', data);
+  const newExp = rows?.[0];
+  if (!newExp) { toast('Ошибка'); return; }
+
+  const oldSplits = _splits.filter(s => s.expense_id === _expDetailId);
+  if (oldSplits.length) {
+    await sbPost('splits', oldSplits.map(s => ({ expense_id: newExp.id, member_tg_id: s.member_tg_id, amount: s.amount })));
+  }
+
+  closeSheet('ov-exp-detail');
+  showSuccess();
+  toast('Копия создана');
+  await loadExpenses();
+}
+
+async function deleteExpense() {
+  if (!confirm('Удалить эту операцию?')) return;
+  await sbDelete('expenses', 'id=eq.'+_expDetailId);
+  closeSheet('ov-exp-detail');
+  toast('Удалено');
+  await loadExpenses();
 }
 
 /* ═══════════════════════════════════════════
@@ -1312,7 +1847,8 @@ function initRealtime() {
 ═══════════════════════════════════════════ */
 function esc(s) { return s ? String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') : ''; }
 function pad(n) { return String(n).padStart(2,'0'); }
-function fmtMoney(n) { return Math.round(n).toLocaleString('ru-RU') + ' ₽'; }
+const CUR_SYM = {RUB:'₽',USD:'$',EUR:'€',THB:'฿',TRY:'₺',GEL:'₾'};
+function fmtMoney(n, cur) { return Math.round(n).toLocaleString('ru-RU') + ' ' + (CUR_SYM[cur] || CUR_SYM.RUB); }
 function fmtTime(d) { return pad(d.getHours()) + ':' + pad(d.getMinutes()); }
 function memberName(tgId) {
   const m = _members.find(m => m.tg_id === tgId);
