@@ -74,10 +74,10 @@ body{margin:0;padding:0;height:100%;font-family:'Manrope',system-ui,sans-serif;f
 #screens::-webkit-scrollbar{display:none}
 .screen{flex:0 0 100vw;width:100vw;height:100%;scroll-snap-align:start;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;scrollbar-width:none;background:var(--bg)}
 .screen::-webkit-scrollbar{display:none}
-.screen-inner{padding:0 16px 100px;padding-left:calc(16px + var(--safe-left));padding-right:calc(16px + var(--safe-right))}
+.screen-inner{padding:0 20px 100px;padding-left:calc(20px + var(--safe-left));padding-right:calc(20px + var(--safe-right))}
 
 /* ─── BOTTOM NAV ─── */
-#nav{flex-shrink:0;background:var(--surface);border-top:1px solid var(--border);display:flex;align-items:center;height:var(--nav-h);padding-bottom:var(--safe-bot);-webkit-transform:translate3d(0,0,0);transform:translate3d(0,0,0)}
+#nav{flex-shrink:0;background:var(--surface);border-top:1px solid var(--border);display:flex;align-items:center;height:calc(var(--nav-h) + 8px);padding-bottom:calc(var(--safe-bot) + 8px);-webkit-transform:translate3d(0,0,0);transform:translate3d(0,0,0)}
 .ni{flex:1;height:var(--nav-h);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;background:none;border:none;cursor:pointer;color:var(--ph);transition:color .15s,transform .1s;font-family:inherit;padding:0;position:relative}
 .ni:active{transform:scale(.88)}
 .ni.on{color:var(--text)}
@@ -246,10 +246,22 @@ body{margin:0;padding:0;height:100%;font-family:'Manrope',system-ui,sans-serif;f
 .chip.on{background:var(--acc);border-color:var(--acc);color:var(--acc-fg)}
 .member-check{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)}
 .member-check:last-child{border-bottom:none}
-.member-check input[type="checkbox"]{width:20px;height:20px;accent-color:var(--accent)}
-.member-check-name{font-size:14px;font-weight:600;flex:1}
-.member-check-amount{font-size:13px;color:var(--sub);font-weight:600;width:70px;text-align:right}
-.member-check .inp{width:70px;padding:8px;font-size:13px;text-align:center}
+.member-check input[type="checkbox"]{width:20px;height:20px;accent-color:var(--accent);flex-shrink:0}
+.member-check-name{font-size:14px;font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.member-check-amount{font-size:13px;color:var(--sub);font-weight:600;min-width:70px;text-align:right;white-space:nowrap}
+.member-check-amount.active{color:var(--accent);font-weight:700}
+.member-check .inp{width:60px;padding:8px;font-size:13px;text-align:center;flex-shrink:0}
+.member-check .split-result{font-size:12px;color:var(--sub);min-width:60px;text-align:right;white-space:nowrap;flex-shrink:0}
+
+/* ─── CONFIRM DIALOG ─── */
+.confirm-overlay{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:24px;animation:fadeIn .15s ease}
+.confirm-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:24px;max-width:320px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3);animation:scaleUp .2s cubic-bezier(.16,1,.3,1)}
+.confirm-title{font-size:17px;font-weight:800;margin-bottom:6px}
+.confirm-msg{font-size:14px;color:var(--sub);line-height:1.5;margin-bottom:20px}
+.confirm-btns{display:flex;gap:8px}
+.confirm-btns .btn{flex:1;padding:12px}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes scaleUp{from{opacity:0;transform:scale(.9)}to{opacity:1;transform:scale(1)}}
 .exp-row{display:flex;gap:10px;margin-top:12px}
 .exp-row>div:first-child{flex:1}
 .exp-row .inp-select{width:90px}
@@ -1530,31 +1542,53 @@ function renderMemberSplits() {
     const eSp = editSplits.find(s => s.member_tg_id === m.tg_id);
     const checked = _expEditId ? !!eSp : true;
     const name = esc(m.display_name||m.tg_name||'?');
-    let extra = '';
+    let input = '';
+    let result = '<span class="split-result" data-tg="'+m.tg_id+'"></span>';
 
     if (_expSplitType === 'equal') {
-      extra = '<span class="member-check-amount" data-tg="'+m.tg_id+'"></span>';
+      input = '';
     } else if (_expSplitType === 'parts') {
       const val = eSp ? Math.round(parseFloat(eSp.amount) / (amount||1) * _members.length) || 1 : 1;
-      extra = '<input class="inp" type="number" inputmode="numeric" value="'+val+'" min="0" style="width:60px;padding:8px;font-size:13px;text-align:center" data-tg="'+m.tg_id+'" onchange="updateSplitPreview()">';
+      input = '<input class="inp" type="number" inputmode="numeric" value="'+val+'" min="0" data-tg="'+m.tg_id+'" oninput="updateSplitPreview()">';
     } else {
       const val = eSp ? parseFloat(eSp.amount) : '';
-      extra = '<input class="inp" type="number" inputmode="decimal" value="'+val+'" placeholder="0" style="width:70px;padding:8px;font-size:13px;text-align:center" data-tg="'+m.tg_id+'">';
+      input = '<input class="inp" type="number" inputmode="decimal" value="'+(val||'')+'" placeholder="0" data-tg="'+m.tg_id+'" oninput="updateSplitPreview()">';
     }
 
-    return '<label class="member-check"><input type="checkbox" value="'+m.tg_id+'"'+(checked?' checked':'')+' onchange="updateSplitPreview()"><span class="member-check-name">'+name+'</span>'+extra+'</label>';
+    return '<label class="member-check"><input type="checkbox" value="'+m.tg_id+'"'+(checked?' checked':'')+' onchange="updateSplitPreview()"><span class="member-check-name">'+name+'</span>'+input+result+'</label>';
   }).join('');
 
   updateSplitPreview();
 }
 
 function updateSplitPreview() {
-  if (_expSplitType !== 'equal') return;
   const amount = parseFloat(el('exp-inp-amount').value) || 0;
-  const checked = [...el('exp-members').querySelectorAll('input[type="checkbox"]:checked')].map(i => i.value);
-  const share = checked.length ? Math.round(amount / checked.length) : 0;
-  el('exp-members').querySelectorAll('.member-check-amount').forEach(sp => {
-    sp.textContent = checked.includes(sp.dataset.tg) && amount ? fmtMoney(share) : '';
+  const checks = [...el('exp-members').querySelectorAll('input[type="checkbox"]')];
+  const checked = checks.filter(i => i.checked).map(i => i.value);
+
+  el('exp-members').querySelectorAll('.split-result').forEach(sp => {
+    const tg = sp.dataset.tg;
+    const isChecked = checked.includes(tg);
+    if (!isChecked || !amount) { sp.textContent = ''; sp.classList.remove('active'); return; }
+
+    let val = 0;
+    if (_expSplitType === 'equal') {
+      val = checked.length ? Math.round(amount / checked.length) : 0;
+    } else if (_expSplitType === 'parts') {
+      const inputs = [...el('exp-members').querySelectorAll('input.inp[data-tg]')];
+      let totalParts = 0;
+      inputs.forEach(inp => {
+        const cb = inp.closest('.member-check').querySelector('input[type="checkbox"]');
+        if (cb && cb.checked) totalParts += (parseFloat(inp.value) || 0);
+      });
+      const myParts = parseFloat(el('exp-members').querySelector('input.inp[data-tg="'+tg+'"]')?.value) || 0;
+      val = totalParts ? Math.round(amount * myParts / totalParts) : 0;
+    } else {
+      val = parseFloat(el('exp-members').querySelector('input.inp[data-tg="'+tg+'"]')?.value) || 0;
+    }
+
+    sp.textContent = val ? fmtMoney(val) : '';
+    sp.classList.toggle('active', val > 0);
   });
 }
 
@@ -1767,39 +1801,57 @@ function editExpense() {
   setTimeout(() => showAddOperation(_expDetailId), 300);
 }
 
+let _dupInProgress = false;
 async function duplicateExpense() {
-  const exp = _expenses.find(e => e.id === _expDetailId);
-  if (!exp) return;
+  if (_dupInProgress) return;
+  _dupInProgress = true;
+  try {
+    const exp = _expenses.find(e => e.id === _expDetailId);
+    if (!exp) return;
 
-  const data = {
-    trip_id: exp.trip_id, paid_by: exp.paid_by, amount: exp.amount,
-    description: exp.description, category: exp.category, split_type: exp.split_type,
-    op_type: exp.op_type || 'expense', currency: exp.currency || 'RUB',
-    expense_date: exp.expense_date, transfer_to: exp.transfer_to,
-    photo_url: exp.photo_url, created_by: S.user.tgId,
-    created_at: new Date().toISOString()
-  };
-  const rows = await sbPost('expenses', data);
-  const newExp = rows?.[0];
-  if (!newExp) { toast('Ошибка'); return; }
+    const data = {
+      trip_id: exp.trip_id, paid_by: exp.paid_by, amount: exp.amount,
+      description: exp.description, category: exp.category, split_type: exp.split_type,
+      op_type: exp.op_type || 'expense', currency: exp.currency || 'RUB',
+      expense_date: exp.expense_date, transfer_to: exp.transfer_to,
+      photo_url: exp.photo_url, created_by: S.user.tgId,
+      created_at: new Date().toISOString()
+    };
+    const rows = await sbPost('expenses', data);
+    const newExp = rows?.[0];
+    if (!newExp) { toast('Ошибка'); return; }
 
-  const oldSplits = _splits.filter(s => s.expense_id === _expDetailId);
-  if (oldSplits.length) {
-    await sbPost('splits', oldSplits.map(s => ({ expense_id: newExp.id, member_tg_id: s.member_tg_id, amount: s.amount })));
+    const oldSplits = _splits.filter(s => s.expense_id === _expDetailId);
+    if (oldSplits.length) {
+      await sbPost('splits', oldSplits.map(s => ({ expense_id: newExp.id, member_tg_id: s.member_tg_id, amount: s.amount })));
+    }
+
+    closeSheet('ov-exp-detail');
+    showSuccess();
+    toast('Копия создана');
+    await loadExpenses();
+  } finally {
+    _dupInProgress = false;
   }
+}
 
-  closeSheet('ov-exp-detail');
-  showSuccess();
-  toast('Копия создана');
-  await loadExpenses();
+function showConfirm(title, msg, onOk) {
+  const ov = document.createElement('div');
+  ov.className = 'confirm-overlay';
+  ov.innerHTML = '<div class="confirm-box"><div class="confirm-title">'+title+'</div><div class="confirm-msg">'+msg+'</div><div class="confirm-btns"><button class="btn btn-ghost" id="confirm-cancel">Отмена</button><button class="btn" style="background:var(--red);color:#fff" id="confirm-ok">Удалить</button></div></div>';
+  document.body.appendChild(ov);
+  ov.querySelector('#confirm-cancel').onclick = () => ov.remove();
+  ov.querySelector('#confirm-ok').onclick = () => { ov.remove(); onOk(); };
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
 }
 
 async function deleteExpense() {
-  if (!confirm('Удалить эту операцию?')) return;
-  await sbDelete('expenses', 'id=eq.'+_expDetailId);
-  closeSheet('ov-exp-detail');
-  toast('Удалено');
-  await loadExpenses();
+  showConfirm('Удалить операцию?', 'Это действие нельзя отменить. Все данные по этой операции будут удалены.', async () => {
+    await sbDelete('expenses', 'id=eq.'+_expDetailId);
+    closeSheet('ov-exp-detail');
+    toast('Удалено');
+    await loadExpenses();
+  });
 }
 
 /* ═══════════════════════════════════════════
