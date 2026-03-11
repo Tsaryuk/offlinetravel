@@ -730,7 +730,7 @@ async function startTgAuth() {
 
 function openTg() {
   if (_tgCode) {
-    window.open('https://t.me/' + BOT_NAME + '?start=' + _tgCode, '_blank');
+    location.href = 'https://t.me/' + BOT_NAME + '?start=' + _tgCode;
   }
 }
 
