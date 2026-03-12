@@ -500,6 +500,7 @@ body{margin:0;padding:0;height:100%;font-family:'Manrope',system-ui,sans-serif;f
         <div class="page-hdr">
           <div class="page-hdr-title">Расписание</div>
           <div style="display:flex;gap:8px">
+            <button id="sched-pdf-btn" onclick="exportSchedulePDF()" style="display:none;background:none;border:none;cursor:pointer;padding:6px;color:var(--sub)"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>
             <button class="theme-btn" onclick="cycleTheme()" id="theme-ico"></button>
             <div class="user-pill" onclick="showProfile()">
               <div class="user-ava" id="nav-ava"></div>
@@ -517,6 +518,7 @@ body{margin:0;padding:0;height:100%;font-family:'Manrope',system-ui,sans-serif;f
       <div class="screen-inner">
         <div class="page-hdr">
           <div class="page-hdr-title">Места</div>
+          <button id="places-pdf-btn" onclick="exportPlacesPDF()" style="display:none;background:none;border:none;cursor:pointer;padding:6px;color:var(--sub)"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>
         </div>
         <div class="place-filter-tabs" id="place-filter-tabs"></div>
         <div id="places-list"></div>
@@ -1904,6 +1906,7 @@ function selectDay(date) {
 }
 
 function renderSchedule() {
+  el('sched-pdf-btn').style.display = _scheduleEvents.length ? '' : 'none';
   const events = _scheduleEvents.filter(e => e.day === _selDay);
   if (!events.length) {
     el('schedule-list').innerHTML = '<div class="empty-wrap"><div class="empty-illustration">📅</div><div class="empty-title">Нет событий</div><div class="empty-sub">На этот день пока ничего не запланировано. Организатор скоро добавит расписание.</div></div>';
@@ -1942,6 +1945,7 @@ function openMap(url) {
    RENDER: PLACES
 ═══════════════════════════════════════════ */
 function renderPlaces() {
+  el('places-pdf-btn').style.display = _places.length ? '' : 'none';
   renderPlaceFilterTabs();
   const filtered = _placeFilter === 'all' ? _places : _places.filter(p => p.category === _placeFilter);
   if (!filtered.length) {
@@ -3240,6 +3244,192 @@ async function exportPDF() {
     doc.save(filename);
   } catch (err) {
     console.error('PDF export error:', err);
+    toast('Ошибка генерации PDF');
+  }
+}
+
+async function exportPlacesPDF() {
+  toast('Генерация PDF...');
+  try {
+    await Promise.all([
+      loadScript('https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js'),
+      loadPdfFont()
+    ]);
+    await loadScript('https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js');
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF('p','mm','a4');
+    doc.addFileToVFS('Roboto-Regular.ttf', _pdfFontBase64);
+    doc.addFont('Roboto-Regular.ttf', 'Roboto', 'normal');
+    doc.setFont('Roboto');
+
+    const pw = doc.internal.pageSize.getWidth();
+    const margin = 14;
+    let y = 18;
+    const addPage = () => { doc.addPage(); y = 18; };
+    const checkPage = (need) => { if (y + need > 280) addPage(); };
+
+    doc.setFontSize(18);
+    doc.text('Путеводитель по местам', pw/2, y, { align:'center' });
+    y += 8;
+    doc.setFontSize(11);
+    doc.setTextColor(100);
+    if (_tripName) { doc.text(_tripName, pw/2, y, { align:'center' }); y += 5; }
+    if (_tripStart && _tripEnd) { doc.text(_tripStart + '  —  ' + _tripEnd, pw/2, y, { align:'center' }); y += 5; }
+    y += 5;
+    doc.setTextColor(0);
+
+    const catOrder = ['housing','food','sight','transport','other'];
+    catOrder.forEach(catKey => {
+      const catPlaces = _places.filter(p => (p.category||'other') === catKey);
+      if (!catPlaces.length) return;
+      const cat = PLACE_CATS[catKey] || PLACE_CATS.other;
+
+      checkPage(25);
+      doc.setFontSize(13);
+      doc.text(cat.emoji + ' ' + cat.label, margin, y);
+      y += 3;
+
+      const rows = catPlaces.map(p => [
+        p.name || '',
+        p.address || '',
+        p.description || ''
+      ]);
+
+      doc.autoTable({
+        startY: y,
+        head: [['Название', 'Адрес', 'Описание']],
+        body: rows,
+        margin: { left: margin, right: margin },
+        styles: { font: 'Roboto', fontSize: 8, cellPadding: 2, overflow: 'linebreak' },
+        headStyles: { fillColor: [66,66,66] },
+        columnStyles: { 0: { cellWidth: 35 }, 1: { cellWidth: 50 } },
+        theme: 'grid'
+      });
+      y = doc.lastAutoTable.finalY + 3;
+
+      const withCoords = catPlaces.filter(p => p.lat && p.lng);
+      if (withCoords.length) {
+        doc.setFontSize(7);
+        doc.setTextColor(120);
+        withCoords.forEach(p => {
+          checkPage(5);
+          doc.text(p.name + ':  ' + p.lat + ', ' + p.lng, margin + 1, y);
+          y += 3.5;
+        });
+        doc.setTextColor(0);
+      }
+      y += 5;
+    });
+
+    const totalPages = doc.internal.getNumberOfPages();
+    for (let p = 1; p <= totalPages; p++) {
+      doc.setPage(p);
+      doc.setFontSize(7);
+      doc.setTextColor(160);
+      doc.text('Offline.Travel  ·  ' + new Date().toLocaleDateString('ru-RU'), pw/2, 290, { align:'center' });
+      doc.setTextColor(0);
+    }
+
+    const filename = 'places_' + (_tripName||'trip').replace(/[^a-zA-Zа-яА-Я0-9]/g,'_') + '.pdf';
+    const blob = doc.output('blob');
+    if (navigator.share && navigator.canShare && navigator.canShare({ files: [new File([blob], filename, { type:'application/pdf' })] })) {
+      try { await navigator.share({ files: [new File([blob], filename, { type:'application/pdf' })], title: 'Путеводитель по местам' }); return; } catch {}
+    }
+    doc.save(filename);
+  } catch (err) {
+    console.error('Places PDF error:', err);
+    toast('Ошибка генерации PDF');
+  }
+}
+
+async function exportSchedulePDF() {
+  toast('Генерация PDF...');
+  try {
+    await Promise.all([
+      loadScript('https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js'),
+      loadPdfFont()
+    ]);
+    await loadScript('https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js');
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF('p','mm','a4');
+    doc.addFileToVFS('Roboto-Regular.ttf', _pdfFontBase64);
+    doc.addFont('Roboto-Regular.ttf', 'Roboto', 'normal');
+    doc.setFont('Roboto');
+
+    const pw = doc.internal.pageSize.getWidth();
+    const margin = 14;
+    let y = 18;
+    const addPage = () => { doc.addPage(); y = 18; };
+    const checkPage = (need) => { if (y + need > 280) addPage(); };
+
+    doc.setFontSize(18);
+    doc.text('Расписание поездки', pw/2, y, { align:'center' });
+    y += 8;
+    doc.setFontSize(11);
+    doc.setTextColor(100);
+    if (_tripName) { doc.text(_tripName, pw/2, y, { align:'center' }); y += 5; }
+    if (_tripStart && _tripEnd) { doc.text(_tripStart + '  —  ' + _tripEnd, pw/2, y, { align:'center' }); y += 5; }
+    y += 5;
+    doc.setTextColor(0);
+
+    _tripDays.forEach(day => {
+      const events = _scheduleEvents.filter(e => e.day === day.date);
+
+      checkPage(20);
+      doc.setFontSize(12);
+      doc.setTextColor(50);
+      doc.text(day.label, margin, y);
+      doc.setTextColor(0);
+      y += 3;
+
+      if (!events.length) {
+        doc.setFontSize(9);
+        doc.setTextColor(140);
+        doc.text('Свободный день', margin + 2, y + 4);
+        doc.setTextColor(0);
+        y += 10;
+        return;
+      }
+
+      const rows = events.map(e => {
+        let time = (e.time_start || '').slice(0,5);
+        if (e.time_end) time += ' - ' + e.time_end.slice(0,5);
+        const place = e.place_id ? _places.find(p => p.id === e.place_id) : null;
+        return [time, e.title || '', e.description || '', place ? place.name : ''];
+      });
+
+      doc.autoTable({
+        startY: y,
+        head: [['Время', 'Событие', 'Описание', 'Место']],
+        body: rows,
+        margin: { left: margin, right: margin },
+        styles: { font: 'Roboto', fontSize: 8, cellPadding: 2, overflow: 'linebreak' },
+        headStyles: { fillColor: [66,66,66] },
+        columnStyles: { 0: { cellWidth: 22 }, 1: { cellWidth: 35 }, 3: { cellWidth: 30 } },
+        theme: 'grid'
+      });
+      y = doc.lastAutoTable.finalY + 8;
+    });
+
+    const totalPages = doc.internal.getNumberOfPages();
+    for (let p = 1; p <= totalPages; p++) {
+      doc.setPage(p);
+      doc.setFontSize(7);
+      doc.setTextColor(160);
+      doc.text('Offline.Travel  ·  ' + new Date().toLocaleDateString('ru-RU'), pw/2, 290, { align:'center' });
+      doc.setTextColor(0);
+    }
+
+    const filename = 'schedule_' + (_tripName||'trip').replace(/[^a-zA-Zа-яА-Я0-9]/g,'_') + '.pdf';
+    const blob = doc.output('blob');
+    if (navigator.share && navigator.canShare && navigator.canShare({ files: [new File([blob], filename, { type:'application/pdf' })] })) {
+      try { await navigator.share({ files: [new File([blob], filename, { type:'application/pdf' })], title: 'Расписание поездки' }); return; } catch {}
+    }
+    doc.save(filename);
+  } catch (err) {
+    console.error('Schedule PDF error:', err);
     toast('Ошибка генерации PDF');
   }
 }
