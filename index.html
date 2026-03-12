@@ -404,11 +404,8 @@ body{margin:0;padding:0;height:100%;font-family:'Manrope',system-ui,sans-serif;f
 .success-circle svg{width:40px;height:40px;stroke:#fff;stroke-width:3;fill:none}
 
 /* ─── PULL TO REFRESH ─── */
-.ptr-indicator{position:fixed;top:calc(var(--safe-top) - 40px);left:50%;transform:translateX(-50%);z-index:50;border-radius:20px;background:var(--surface);box-shadow:0 2px 12px rgba(0,0,0,.12);display:flex;align-items:center;justify-content:center;gap:6px;padding:8px 14px;transition:top .25s cubic-bezier(.16,1,.3,1);pointer-events:none}
+.ptr-indicator{position:fixed;top:calc(var(--safe-top) - 40px);left:50%;transform:translateX(-50%);z-index:50;width:36px;height:36px;border-radius:50%;background:var(--surface);box-shadow:0 2px 12px rgba(0,0,0,.12);display:flex;align-items:center;justify-content:center;transition:top .25s cubic-bezier(.16,1,.3,1);pointer-events:none}
 .ptr-indicator.show{top:calc(var(--safe-top) + 12px)}
-.ptr-indicator.done .ptr-spinner{display:none}
-.ptr-indicator .ptr-label{display:none;font-size:12px;font-weight:600;color:var(--green);white-space:nowrap}
-.ptr-indicator.done .ptr-label{display:block}
 .ptr-spinner{width:20px;height:20px;border:2.5px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .6s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 
@@ -431,7 +428,7 @@ body{margin:0;padding:0;height:100%;font-family:'Manrope',system-ui,sans-serif;f
 <div id="toasts"></div>
 
 <!-- PULL-TO-REFRESH INDICATOR -->
-<div class="ptr-indicator" id="ptr-indicator"><div class="ptr-spinner"></div><span class="ptr-label">Синхронизировано</span></div>
+<div class="ptr-indicator" id="ptr-indicator"><div class="ptr-spinner"></div></div>
 
 <!-- NOTIFICATION BANNER -->
 <div id="notif-banner" onclick="goTab(2);hideNotif()">
@@ -734,7 +731,6 @@ body{margin:0;padding:0;height:100%;font-family:'Manrope',system-ui,sans-serif;f
       </div>
       <div style="display:flex;gap:8px;margin-top:8px" id="mp-actions"></div>
     </div>
-    <button class="btn btn-ghost" style="margin-top:8px" onclick="closeSheet('ov-member-profile')">Закрыть</button>
   </div>
 </div>
 
@@ -1468,6 +1464,8 @@ async function bootApp() {
   initSheetDrag('sh-expense-handle', 'ov-expense');
   initSheetDrag('sh-exp-detail-handle', 'ov-exp-detail');
   initSheetDrag('sh-debts-handle', 'ov-debts');
+  initSheetDrag('sh-members-handle', 'ov-members');
+  initSheetDrag('sh-member-profile-handle', 'ov-member-profile');
   initSheetDrag('sh-profile-handle', 'ov-profile');
 
   // Init pull-to-refresh on each screen
@@ -1506,14 +1504,12 @@ function initPullToRefresh() {
 async function doPullRefresh() {
   if (_ptrBusy) return;
   _ptrBusy = true;
-  const ptr = el('ptr-indicator');
-  ptr.classList.remove('done');
-  ptr.classList.add('show');
+  el('ptr-indicator').classList.add('show');
   try {
     await loadAll();
   } catch(e) {}
-  ptr.classList.add('done');
-  setTimeout(() => { ptr.classList.remove('show','done'); _ptrBusy = false; }, 1200);
+  el('ptr-indicator').classList.remove('show');
+  _ptrBusy = false;
 }
 
 async function loadAll() {
@@ -1590,12 +1586,14 @@ function showMemberProfile(tgId) {
   if (!m) return;
   const name = m.display_name || m.tg_name || '?';
   const color = avaColor(m.tg_id);
+  const isMe = String(m.tg_id) === String(S.user?.tgId);
 
   if (m.tg_photo) {
+    el('mp-ava').style.background = 'none';
     el('mp-ava').innerHTML = '<img src="'+esc(m.tg_photo)+'">';
   } else {
     el('mp-ava').style.background = color;
-    el('mp-ava').textContent = avaInitial(name);
+    el('mp-ava').innerHTML = avaInitial(name);
   }
   el('mp-name').textContent = name;
   if (m.tg_username) {
@@ -1603,14 +1601,22 @@ function showMemberProfile(tgId) {
   } else {
     el('mp-handle').textContent = '';
   }
-  el('mp-phone').textContent = '';
+  const phone = m.phone || (isMe ? localStorage.getItem('ot_phone') : null);
+  if (phone) {
+    el('mp-phone').innerHTML = '<a href="tel:'+esc(phone)+'" style="color:var(--blue);text-decoration:none">'+esc(phone)+'</a>';
+  } else {
+    el('mp-phone').textContent = '';
+  }
   el('mp-role').style.display = m.role === 'admin' ? '' : 'none';
 
   let acts = '';
+  if (phone) {
+    acts += '<a class="btn btn-ghost" href="tel:'+esc(phone)+'" style="flex:1;text-decoration:none;gap:4px"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg> Позвонить</a>';
+  }
   if (m.tg_username) {
     acts += '<a class="btn btn-ghost" href="https://t.me/'+esc(m.tg_username)+'" target="_blank" style="flex:1;text-decoration:none;gap:4px"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.248-2.04 9.61c-.15.673-.544.838-1.101.52l-3.038-2.238-1.466 1.41c-.162.162-.298.298-.611.298l.217-3.084 5.613-5.07c.244-.217-.053-.337-.378-.12L7.06 14.46l-2.987-.94c-.66-.207-.673-.66.138-.977l10.877-4.193c.55-.2 1.031.134.474.898z"/></svg> Telegram</a>';
   }
-  if (String(m.tg_id) !== String(S.user?.tgId)) {
+  if (!isMe) {
     acts += '<button class="btn btn-accent" style="flex:1;gap:4px" onclick="closeSheet(\'ov-member-profile\');closeSheet(\'ov-members\');goTab(2);setTimeout(()=>{el(\'chat-input\').focus()},400)"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#fff" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg> Написать</button>';
   }
   el('mp-actions').innerHTML = acts;
