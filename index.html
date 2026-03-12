@@ -591,7 +591,7 @@ body{margin:0;padding:0;height:100%;font-family:'Manrope',system-ui,sans-serif;f
   <div class="sheet sheet-full" id="sh-expense">
     <div class="sheet-handle" id="sh-expense-handle"></div>
 
-    <div class="chip-row" id="exp-op-types" style="justify-content:center;margin-bottom:10px">
+    <div class="chip-row" id="exp-op-types" style="justify-content:center;margin-bottom:20px">
       <button class="chip on" onclick="pickOpType('expense')">💸 Расход</button>
       <button class="chip" onclick="pickOpType('income')">💰 Возврат</button>
       <button class="chip" onclick="pickOpType('transfer')">🔄 Перевод</button>
@@ -601,8 +601,11 @@ body{margin:0;padding:0;height:100%;font-family:'Manrope',system-ui,sans-serif;f
     <!-- EXPENSE / INCOME fields -->
     <div id="exp-fields-common">
       <div class="form-row">
-        <input class="inp" id="exp-inp-desc" placeholder="Например, напитки">
-        <select class="inp" id="exp-inp-cat" style="width:auto;min-width:90px;padding:12px 10px;font-size:14px"></select>
+        <input class="inp" id="exp-inp-desc" style="flex:1" placeholder="Например, напитки">
+        <div style="position:relative;width:44px;min-width:44px;flex-shrink:0">
+          <div id="exp-cat-btn" style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;font-size:20px;border:1px solid var(--border);border-radius:12px;background:var(--bg)">🏨</div>
+          <select id="exp-inp-cat" style="position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer" onchange="updateCatIcon()"></select>
+        </div>
         <div class="photo-btn" id="exp-photo-btn" onclick="el('exp-photo-input').click()">📷</div>
         <input type="file" id="exp-photo-input" accept="image/*" style="display:none" onchange="onPhotoSelected(this)">
       </div>
@@ -623,12 +626,12 @@ body{margin:0;padding:0;height:100%;font-family:'Manrope',system-ui,sans-serif;f
         </select>
       </div>
 
-      <div class="form-row" style="margin-bottom:16px">
+      <div class="form-row" style="margin-bottom:24px">
         <select class="inp" id="exp-inp-payer" style="flex:1;padding:12px 14px;font-size:15px"></select>
         <input class="inp" id="exp-inp-date" type="date" style="flex:0 0 auto;width:auto;min-width:140px;padding:12px 10px;font-size:14px">
       </div>
 
-      <div class="split-header" style="margin-top:12px">
+      <div class="split-header" style="margin-top:0">
         <div class="inp-label">Разделить</div>
         <div class="chip-row" id="exp-split-types" style="margin:0;gap:4px">
           <button class="chip on" onclick="pickSplitType('equal')">Поровну</button>
@@ -666,7 +669,6 @@ body{margin:0;padding:0;height:100%;font-family:'Manrope',system-ui,sans-serif;f
     </div>
 
     <button class="btn btn-accent" id="exp-save-btn" style="margin-top:16px" onclick="submitExpense()">Сохранить</button>
-    <button class="btn btn-ghost btn-sm" style="margin-top:8px;width:auto;margin-left:auto;margin-right:auto;padding:8px 24px;font-size:13px;color:var(--sub)" onclick="closeSheet('ov-expense')">Отмена</button>
   </div>
 </div>
 
@@ -711,7 +713,6 @@ body{margin:0;padding:0;height:100%;font-family:'Manrope',system-ui,sans-serif;f
     <div class="sheet-handle" id="sh-members-handle"></div>
     <div class="sheet-title" style="text-align:center">Участники</div>
     <div id="members-list"></div>
-    <button class="btn btn-ghost" style="margin-top:12px" onclick="closeSheet('ov-members')">Закрыть</button>
   </div>
 </div>
 
@@ -2019,7 +2020,7 @@ function showDebts() {
     if (isToMe) { dir = esc(fromN) + ' должен тебе'; amtColor = 'var(--green)'; }
     else if (isMyDebt) { dir = 'ты должен ' + esc(toN); amtColor = 'var(--red)'; }
     else { dir = esc(fromN) + ' &rarr; ' + esc(toN); amtColor = 'var(--text)'; }
-    return '<div class="card debt-card"><div class="debt-card-top"><div class="debt-ava" style="background:'+color+'">'+avaInitial(fromN)+'</div><div class="debt-info"><div class="debt-name">'+dir+'</div><div class="debt-dir">'+fmtMoney(s.amount)+'</div></div><div class="debt-amount" style="color:'+amtColor+'">'+fmtMoney(s.amount)+'</div></div><div class="debt-actions"><button class="btn" style="background:var(--green);color:#fff" onclick="confirmSettle(\''+s.from+'\',\''+s.to+'\','+s.amount+')">Оплачено</button></div></div>';
+    return '<div class="card debt-card"><div class="debt-card-top"><div class="debt-ava" style="background:'+color+'">'+avaInitial(fromN)+'</div><div class="debt-info"><div class="debt-name">'+dir+'</div><div class="debt-dir">'+fmtMoney(s.amount)+'</div></div><div class="debt-amount" style="color:'+amtColor+'">'+fmtMoney(s.amount)+'</div></div><div class="debt-actions"><button class="btn" style="background:var(--green);color:#fff" onclick="confirmSettle(\''+s.from+'\',\''+s.to+'\','+s.amount+')">Получено</button></div></div>';
   }
 
   if (mine.length) {
@@ -2118,10 +2119,10 @@ function confirmSettle(fromId, toId, amount) {
   const fromN = memberName(fromId);
   const toN = memberName(toId);
   const msg = esc(fromN) + ' &rarr; ' + esc(toN) + ': ' + fmtMoney(amount);
-  showConfirm('Отметить как оплачено?', msg, async () => {
+  showConfirm('Отметить как полученное?', msg, async () => {
     closeSheet('ov-debts');
     await doSettle(fromId, toId, amount);
-  }, 'Оплачено', 'var(--green)');
+  }, 'Получено', 'var(--green)');
 }
 
 async function doSettle(fromId, toId, amount) {
@@ -2156,6 +2157,7 @@ function showAddOperation(editId) {
 
   // Populate category select
   el('exp-inp-cat').innerHTML = CATS.map(c => '<option value="'+c.id+'">'+c.icon+' '+c.label+'</option>').join('');
+  updateCatIcon();
 
   // Populate payer select
   el('exp-inp-payer').innerHTML = _members.map(m =>
@@ -2185,6 +2187,7 @@ function showAddOperation(editId) {
       el('exp-inp-currency').value = exp.currency || 'RUB';
       el('exp-inp-date').value = exp.expense_date || new Date().toISOString().split('T')[0];
       el('exp-inp-cat').value = exp.category || 'food';
+      updateCatIcon();
       el('exp-inp-payer').value = exp.paid_by;
       if (exp.photo_url) {
         el('exp-photo-img').src = exp.photo_url;
@@ -2241,6 +2244,12 @@ function pickOpType(type) {
   }
 }
 
+
+function updateCatIcon() {
+  const sel = el('exp-inp-cat');
+  const cat = CATS.find(c => c.id === sel.value);
+  if (cat) el('exp-cat-btn').textContent = cat.icon;
+}
 
 function renderSplitTypeChips() {
   const types = [['equal','Поровну'],['parts','По долям'],['amounts','По суммам']];
