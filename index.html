@@ -393,6 +393,13 @@ body{margin:0;padding:0;height:100%;font-family:'Manrope',system-ui,sans-serif;f
 .btn.loading{pointer-events:none;opacity:.7}
 .btn.loading .btn-text{visibility:hidden}
 .btn.loading::after{content:'';position:absolute;width:20px;height:20px;border:2.5px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite}
+
+/* ─── OFFLINE BAR ─── */
+.offline-bar{position:fixed;top:0;left:0;right:0;z-index:999;background:#ff9800;color:#fff;font-size:12px;font-weight:700;text-align:center;padding:4px 12px;transform:translateY(-100%);transition:transform .3s ease;display:flex;align-items:center;justify-content:center;gap:6px}
+.offline-bar.show{transform:translateY(0)}
+.offline-bar .sync-spinner{width:12px;height:12px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;display:none}
+.offline-bar.syncing .sync-spinner{display:inline-block}
+.offline-bar.syncing{background:var(--green)}
 </style>
 </head>
 <body>
@@ -444,6 +451,8 @@ body{margin:0;padding:0;height:100%;font-family:'Manrope',system-ui,sans-serif;f
 <!-- APP -->
 <!-- ═══════════════════════════════════════════ -->
 <div id="app-wrap">
+
+  <div class="offline-bar" id="offline-bar"><span class="sync-spinner"></span><span id="offline-text">Офлайн-режим</span></div>
 
   <!-- SCREENS -->
   <div id="screens">
@@ -526,11 +535,8 @@ body{margin:0;padding:0;height:100%;font-family:'Manrope',system-ui,sans-serif;f
 
         <!-- SUB-TAB 2: PHOTOS -->
         <div id="exp-pane-photos" style="display:none">
-          <div style="margin-bottom:10px">
-            <button class="btn btn-sm" style="background:var(--accent);color:#fff;border:none;font-size:13px;padding:8px 14px" onclick="el('standalone-photo-input').click()">📷 Загрузить фото</button>
-            <input type="file" id="standalone-photo-input" accept="image/*" capture="environment" style="display:none" onchange="uploadStandalonePhoto(this)">
-          </div>
           <div id="photos-list"></div>
+          <input type="file" id="standalone-photo-input" accept="image/*" capture="environment" style="display:none" onchange="uploadStandalonePhoto(this)">
         </div>
 
       </div>
@@ -734,6 +740,144 @@ const CATS = [
 ];
 
 /* ═══════════════════════════════════════════
+   OFFLINE: IndexedDB Cache + Sync Queue
+═══════════════════════════════════════════ */
+const DB_NAME = 'ot_offline';
+const DB_VER = 1;
+let _idb = null;
+
+function openIDB() {
+  return new Promise((resolve, reject) => {
+    if (_idb) { resolve(_idb); return; }
+    const req = indexedDB.open(DB_NAME, DB_VER);
+    req.onupgradeneeded = e => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains('cache')) db.createObjectStore('cache');
+      if (!db.objectStoreNames.contains('queue')) db.createObjectStore('queue', { autoIncrement: true });
+    };
+    req.onsuccess = e => { _idb = e.target.result; resolve(_idb); };
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function idbPut(store, key, val) {
+  const db = await openIDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(store, 'readwrite');
+    tx.objectStore(store).put(val, key);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+async function idbGet(store, key) {
+  const db = await openIDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(store, 'readonly');
+    const req = tx.objectStore(store).get(key);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function idbGetAll(store) {
+  const db = await openIDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(store, 'readonly');
+    const req = tx.objectStore(store).getAll();
+    const kReq = tx.objectStore(store).getAllKeys();
+    req.onsuccess = () => { kReq.onsuccess = () => resolve(req.result.map((v,i) => ({key: kReq.result[i], value: v}))); };
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function idbDelete(store, key) {
+  const db = await openIDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(store, 'readwrite');
+    tx.objectStore(store).delete(key);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+async function queueOp(op) {
+  await idbPut('queue', undefined, op);
+  updateOfflineBar();
+}
+
+async function getQueueSize() {
+  try {
+    const items = await idbGetAll('queue');
+    return items.length;
+  } catch { return 0; }
+}
+
+function updateOfflineBar() {
+  const bar = document.getElementById('offline-bar');
+  if (!bar) return;
+  if (navigator.onLine) {
+    bar.classList.remove('show');
+  } else {
+    bar.classList.add('show');
+    getQueueSize().then(n => {
+      const txt = document.getElementById('offline-text');
+      if (txt) txt.textContent = n > 0 ? 'Офлайн \u00b7 ' + n + ' в очереди' : 'Офлайн-режим';
+    });
+  }
+}
+
+async function syncQueue() {
+  if (!navigator.onLine) return;
+  const items = await idbGetAll('queue');
+  if (!items.length) return;
+  const bar = document.getElementById('offline-bar');
+  const txt = document.getElementById('offline-text');
+  if (bar) { bar.classList.add('show', 'syncing'); }
+  if (txt) txt.textContent = 'Синхронизация...';
+
+  let ok = 0, fail = 0;
+  for (const item of items) {
+    try {
+      const op = item.value;
+      let r;
+      if (op.method === 'POST') {
+        r = await fetch(`${SB_URL}/rest/v1/${op.table}`, {
+          method:'POST', headers:{...SB_HDR,'Prefer':'return=representation'}, body:JSON.stringify(op.data)
+        });
+      } else if (op.method === 'PATCH') {
+        r = await fetch(`${SB_URL}/rest/v1/${op.table}?${op.query}`, {
+          method:'PATCH', headers:{...SB_HDR,'Prefer':'return=minimal'}, body:JSON.stringify(op.data)
+        });
+      } else if (op.method === 'DELETE') {
+        r = await fetch(`${SB_URL}/rest/v1/${op.table}?${op.query}`, {
+          method:'DELETE', headers:{...SB_HDR,'Prefer':'return=minimal'}
+        });
+      }
+      if (r && r.ok) {
+        await idbDelete('queue', item.key);
+        ok++;
+      } else { fail++; }
+    } catch { fail++; }
+  }
+
+  if (bar) bar.classList.remove('syncing');
+  if (ok > 0 && fail === 0) {
+    if (txt) txt.textContent = 'Синхронизировано!';
+    setTimeout(() => { if (bar) bar.classList.remove('show'); }, 1500);
+    try { await loadAll(); } catch {}
+  } else if (fail > 0) {
+    if (txt) txt.textContent = fail + ' не синхр.';
+    setTimeout(() => updateOfflineBar(), 3000);
+  } else {
+    if (bar) bar.classList.remove('show');
+  }
+}
+
+window.addEventListener('online', () => { syncQueue(); });
+window.addEventListener('offline', () => { updateOfflineBar(); });
+
+/* ═══════════════════════════════════════════
    STATE
 ═══════════════════════════════════════════ */
 let S = { user:null, tripId:null, curTab:0 };
@@ -752,26 +896,67 @@ const el = id => document.getElementById(id);
    SUPABASE HELPERS
 ═══════════════════════════════════════════ */
 async function sbGet(table, query='') {
-  const r = await fetch(`${SB_URL}/rest/v1/${table}?${query}`, { headers:SB_HDR });
-  return r.ok ? r.json() : [];
+  const cacheKey = table + '?' + query;
+  try {
+    const r = await fetch(`${SB_URL}/rest/v1/${table}?${query}`, { headers:SB_HDR });
+    if (r.ok) {
+      const data = await r.json();
+      idbPut('cache', cacheKey, data).catch(() => {});
+      return data;
+    }
+    const cached = await idbGet('cache', cacheKey);
+    return cached || [];
+  } catch {
+    const cached = await idbGet('cache', cacheKey).catch(() => null);
+    return cached || [];
+  }
 }
 async function sbPost(table, data) {
-  const r = await fetch(`${SB_URL}/rest/v1/${table}`, {
-    method:'POST', headers:{...SB_HDR,'Prefer':'return=representation'}, body:JSON.stringify(data)
-  });
-  return r.ok ? r.json() : null;
+  try {
+    const r = await fetch(`${SB_URL}/rest/v1/${table}`, {
+      method:'POST', headers:{...SB_HDR,'Prefer':'return=representation'}, body:JSON.stringify(data)
+    });
+    if (r.ok) return r.json();
+    throw new Error('HTTP ' + r.status);
+  } catch(e) {
+    if (!navigator.onLine || e.message === 'Failed to fetch') {
+      const fakeId = 'local_' + Date.now() + '_' + Math.random().toString(36).slice(2,8);
+      const rows = Array.isArray(data) ? data.map(d => ({...d, id: d.id || ('local_' + Math.random().toString(36).slice(2,10))})) : [{...data, id: fakeId}];
+      await queueOp({ method:'POST', table, data });
+      return rows;
+    }
+    return null;
+  }
 }
 async function sbPatch(table, query, data) {
-  const r = await fetch(`${SB_URL}/rest/v1/${table}?${query}`, {
-    method:'PATCH', headers:{...SB_HDR,'Prefer':'return=minimal'}, body:JSON.stringify(data)
-  });
-  return r.ok;
+  try {
+    const r = await fetch(`${SB_URL}/rest/v1/${table}?${query}`, {
+      method:'PATCH', headers:{...SB_HDR,'Prefer':'return=minimal'}, body:JSON.stringify(data)
+    });
+    if (r.ok) return true;
+    throw new Error('HTTP ' + r.status);
+  } catch(e) {
+    if (!navigator.onLine || e.message === 'Failed to fetch') {
+      await queueOp({ method:'PATCH', table, query, data });
+      return true;
+    }
+    return false;
+  }
 }
 async function sbDelete(table, query) {
-  const r = await fetch(`${SB_URL}/rest/v1/${table}?${query}`, {
-    method:'DELETE', headers:{...SB_HDR,'Prefer':'return=minimal'}
-  });
-  return r.ok;
+  try {
+    const r = await fetch(`${SB_URL}/rest/v1/${table}?${query}`, {
+      method:'DELETE', headers:{...SB_HDR,'Prefer':'return=minimal'}
+    });
+    if (r.ok) return true;
+    throw new Error('HTTP ' + r.status);
+  } catch(e) {
+    if (!navigator.onLine || e.message === 'Failed to fetch') {
+      await queueOp({ method:'DELETE', table, query });
+      return true;
+    }
+    return false;
+  }
 }
 
 /* ═══════════════════════════════════════════
@@ -1041,7 +1226,11 @@ async function bootApp() {
   applyTheme(getTheme());
   showSkeletons();
 
-  // Load all data
+  // Init offline DB
+  await openIDB().catch(() => {});
+  updateOfflineBar();
+
+  // Load all data (from server or cache)
   await Promise.all([
     loadMembers(),
     loadSchedule(),
@@ -1050,6 +1239,9 @@ async function bootApp() {
     loadCheckins(),
     loadExpenses()
   ]);
+
+  // Sync queued operations if online
+  if (navigator.onLine) syncQueue();
 
   // Init realtime
   initRealtime();
@@ -1341,9 +1533,11 @@ function renderExpensesList() {
   const onlyExpenses = _expenses.filter(e => (e.op_type||'expense') === 'expense');
   const totalSpent = onlyExpenses.reduce((s,e) => s + parseFloat(e.amount), 0);
 
+  const myExpenses = onlyExpenses.filter(e => e.paid_by === S.user?.tgId);
+  const mySpent = myExpenses.reduce((s,e) => s + parseFloat(e.amount), 0);
   el('exp-summary').innerHTML =
-    '<div class="exp-stat"><div class="exp-stat-val">'+fmtMoney(totalSpent)+'</div><div class="exp-stat-lbl">Всего потрачено</div></div>' +
-    '<div class="exp-stat"><div class="exp-stat-val '+(myBal>=0?'green':'red')+'">'+fmtMoney(Math.abs(myBal))+'</div><div class="exp-stat-lbl">'+(myBal>=0?'Тебе должны':'Ты должен')+'</div></div>';
+    '<div class="exp-stat"><div class="exp-stat-val">'+fmtMoney(mySpent)+'</div><div class="exp-stat-lbl">Мои расходы</div></div>' +
+    '<div class="exp-stat"><div class="exp-stat-val">'+fmtMoney(totalSpent)+'</div><div class="exp-stat-lbl">Общие расходы</div></div>';
 
   if (!_expenses.length) {
     el('expenses-list').innerHTML = '<div class="empty-wrap"><div class="empty-illustration">💸</div><div class="empty-title">Операций пока нет</div><div class="empty-sub">Добавь первый расход, доход или перевод.</div></div>';
@@ -1501,14 +1695,15 @@ function sortBalance(key) {
    RENDER: PHOTOS
 ═══════════════════════════════════════════ */
 function renderPhotos() {
+  const uploadBtn = '<div style="text-align:center;margin-top:16px"><span style="font-size:14px;color:var(--sub);cursor:pointer" onclick="el(\'standalone-photo-input\').click()">📷 Загрузить</span></div>';
   const withPhotos = _expenses.filter(e => e.photo_url);
   if (!withPhotos.length) {
-    el('photos-list').innerHTML = '<div class="empty-wrap"><div class="empty-illustration">📷</div><div class="empty-title">Фото нет</div><div class="empty-sub">Добавь фото чека при создании расхода.</div></div>';
+    el('photos-list').innerHTML = '<div class="empty-wrap"><div class="empty-illustration">📷</div><div class="empty-title">Фото нет</div><div class="empty-sub">Добавь фото чека при создании расхода.</div>' + uploadBtn + '</div>';
     return;
   }
   el('photos-list').innerHTML = '<div class="photos-grid">' + withPhotos.map(e =>
     '<div onclick="showExpDetail(\''+e.id+'\')"><img class="photo-thumb" src="'+esc(e.photo_url)+'" loading="lazy"><div class="photo-label">'+esc(e.description)+'</div></div>'
-  ).join('') + '</div>';
+  ).join('') + '</div>' + uploadBtn;
 }
 
 /* ═══════════════════════════════════════════
