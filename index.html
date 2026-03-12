@@ -181,7 +181,7 @@ body{margin:0;padding:0;height:100%;font-family:'Manrope',system-ui,sans-serif;f
 .chat-bubble{max-width:80%;padding:10px 14px;border-radius:16px;margin-bottom:6px;font-size:14px;line-height:1.4;word-break:break-word}
 .chat-bubble.mine{background:var(--accent);color:#fff;align-self:flex-end;border-bottom-right-radius:4px}
 .chat-bubble.other{background:var(--surface);border:1px solid var(--border);color:var(--text);align-self:flex-start;border-bottom-left-radius:4px}
-.chat-bubble .cb-name{font-size:11px;font-weight:700;color:var(--sub);margin-bottom:2px}
+.chat-bubble .cb-name{font-size:11px;font-weight:700;color:var(--accent);margin-bottom:2px}
 .chat-bubble.mine .cb-name{color:rgba(255,255,255,.7)}
 .chat-bubble .cb-time{font-size:10px;color:var(--ph);text-align:right;margin-top:4px}
 .chat-bubble.mine .cb-time{color:rgba(255,255,255,.6)}
@@ -337,6 +337,16 @@ body{margin:0;padding:0;height:100%;font-family:'Manrope',system-ui,sans-serif;f
 .profile-handle{font-size:13px;color:var(--sub);text-align:center;margin-bottom:4px}
 .profile-handle a{color:var(--blue);text-decoration:none}
 .profile-phone{font-size:13px;color:var(--sub);text-align:center;margin-bottom:20px}
+.member-card{display:flex;align-items:center;gap:12px;padding:14px 16px;margin-bottom:6px;cursor:pointer}
+.member-card:active{opacity:.7}
+.member-ava{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;color:#fff;flex-shrink:0;overflow:hidden}
+.member-ava img{width:100%;height:100%;object-fit:cover}
+.member-info{flex:1;min-width:0}
+.member-name{font-size:15px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.member-handle{font-size:12px;color:var(--sub)}
+.member-actions{display:flex;gap:6px;flex-shrink:0}
+.member-act-btn{width:36px;height:36px;border-radius:50%;border:1.5px solid var(--border);background:var(--surface);display:flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer}
+.member-act-btn:active{transform:scale(.9);background:var(--surface2)}
 .profile-row{display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid var(--border)}
 .profile-row-label{font-size:14px;font-weight:600}
 .theme-select{display:flex;gap:4px}
@@ -394,8 +404,11 @@ body{margin:0;padding:0;height:100%;font-family:'Manrope',system-ui,sans-serif;f
 .success-circle svg{width:40px;height:40px;stroke:#fff;stroke-width:3;fill:none}
 
 /* ─── PULL TO REFRESH ─── */
-.ptr-indicator{position:fixed;top:calc(var(--safe-top) - 40px);left:50%;transform:translateX(-50%);z-index:50;width:36px;height:36px;border-radius:50%;background:var(--surface);box-shadow:0 2px 12px rgba(0,0,0,.12);display:flex;align-items:center;justify-content:center;transition:top .25s cubic-bezier(.16,1,.3,1);pointer-events:none}
+.ptr-indicator{position:fixed;top:calc(var(--safe-top) - 40px);left:50%;transform:translateX(-50%);z-index:50;border-radius:20px;background:var(--surface);box-shadow:0 2px 12px rgba(0,0,0,.12);display:flex;align-items:center;justify-content:center;gap:6px;padding:8px 14px;transition:top .25s cubic-bezier(.16,1,.3,1);pointer-events:none}
 .ptr-indicator.show{top:calc(var(--safe-top) + 12px)}
+.ptr-indicator.done .ptr-spinner{display:none}
+.ptr-indicator .ptr-label{display:none;font-size:12px;font-weight:600;color:var(--green);white-space:nowrap}
+.ptr-indicator.done .ptr-label{display:block}
 .ptr-spinner{width:20px;height:20px;border:2.5px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .6s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 
@@ -418,7 +431,7 @@ body{margin:0;padding:0;height:100%;font-family:'Manrope',system-ui,sans-serif;f
 <div id="toasts"></div>
 
 <!-- PULL-TO-REFRESH INDICATOR -->
-<div class="ptr-indicator" id="ptr-indicator"><div class="ptr-spinner"></div></div>
+<div class="ptr-indicator" id="ptr-indicator"><div class="ptr-spinner"></div><span class="ptr-label">Синхронизировано</span></div>
 
 <!-- NOTIFICATION BANNER -->
 <div id="notif-banner" onclick="goTab(2);hideNotif()">
@@ -495,11 +508,12 @@ body{margin:0;padding:0;height:100%;font-family:'Manrope',system-ui,sans-serif;f
       </div>
     </div>
 
-    <!-- TAB 2: MESSAGES -->
+    <!-- TAB 2: CHAT -->
     <div class="screen" id="scr-2">
       <div class="chat-wrap">
-        <div class="page-hdr" style="flex-shrink:0">
+        <div class="page-hdr" style="flex-shrink:0;padding-left:16px;padding-right:16px">
           <div class="page-hdr-title">Чат</div>
+          <button onclick="showMembers()" style="background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:4px;color:var(--sub);font-family:inherit;font-size:12px;font-weight:600;padding:6px 0"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg><span id="members-count"></span></button>
         </div>
         <div class="chat-messages" id="chat-messages"></div>
         <div class="chat-input-bar">
@@ -689,6 +703,38 @@ body{margin:0;padding:0;height:100%;font-family:'Manrope',system-ui,sans-serif;f
     <div class="debts-header" id="debts-header"></div>
     <div id="debts-list"></div>
     <button class="btn btn-ghost" style="margin-top:12px" onclick="closeSheet('ov-debts')">Закрыть</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- MEMBERS SHEET -->
+<!-- ═══════════════════════════════════════════ -->
+<div class="overlay" id="ov-members">
+  <div class="sheet sheet-full" id="sh-members">
+    <div class="sheet-handle" id="sh-members-handle"></div>
+    <div class="sheet-title" style="text-align:center">Участники</div>
+    <div id="members-list"></div>
+    <button class="btn btn-ghost" style="margin-top:12px" onclick="closeSheet('ov-members')">Закрыть</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- MEMBER PROFILE SHEET -->
+<!-- ═══════════════════════════════════════════ -->
+<div class="overlay" id="ov-member-profile">
+  <div class="sheet" id="sh-member-profile">
+    <div class="sheet-handle" id="sh-member-profile-handle"></div>
+    <div class="profile-section">
+      <div class="profile-ava" id="mp-ava"></div>
+      <div class="profile-name" id="mp-name"></div>
+      <div class="profile-handle" id="mp-handle"></div>
+      <div class="profile-phone" id="mp-phone"></div>
+      <div id="mp-role" style="display:none;text-align:center;margin:-12px 0 16px">
+        <span style="background:var(--accent);color:#fff;font-size:11px;font-weight:700;padding:3px 10px;border-radius:12px">Админ</span>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:8px" id="mp-actions"></div>
+    </div>
+    <button class="btn btn-ghost" style="margin-top:8px" onclick="closeSheet('ov-member-profile')">Закрыть</button>
   </div>
 </div>
 
@@ -1460,12 +1506,14 @@ function initPullToRefresh() {
 async function doPullRefresh() {
   if (_ptrBusy) return;
   _ptrBusy = true;
-  el('ptr-indicator').classList.add('show');
+  const ptr = el('ptr-indicator');
+  ptr.classList.remove('done');
+  ptr.classList.add('show');
   try {
     await loadAll();
   } catch(e) {}
-  el('ptr-indicator').classList.remove('show');
-  _ptrBusy = false;
+  ptr.classList.add('done');
+  setTimeout(() => { ptr.classList.remove('show','done'); _ptrBusy = false; }, 1200);
 }
 
 async function loadAll() {
@@ -1519,6 +1567,56 @@ function editPhone() {
   updateUserUI();
 }
 
+function showMembers() {
+  const list = el('members-list');
+  list.innerHTML = _members.map(m => {
+    const name = m.display_name || m.tg_name || '?';
+    const isMe = m.tg_id === S.user?.tgId;
+    const color = avaColor(m.tg_id);
+    const ava = m.tg_photo
+      ? '<img src="'+esc(m.tg_photo)+'" onerror="this.parentElement.textContent=\''+avaInitial(name)+'\'">'
+      : avaInitial(name);
+    const handle = m.tg_username ? '@'+esc(m.tg_username) : '';
+    const admin = m.role === 'admin' ? ' <span style="font-size:10px;background:var(--accent);color:#fff;padding:1px 6px;border-radius:8px;font-weight:700">Админ</span>' : '';
+    let btns = '';
+    if (m.tg_username) btns += '<a class="member-act-btn" href="https://t.me/'+esc(m.tg_username)+'" target="_blank" title="Telegram">&#9992;</a>';
+    return '<div class="card member-card" onclick="showMemberProfile(\''+m.tg_id+'\')"><div class="member-ava" style="background:'+color+'">'+ava+'</div><div class="member-info"><div class="member-name">'+esc(name)+(isMe?' <span style="color:var(--sub);font-weight:400;font-size:12px">(я)</span>':'')+admin+'</div><div class="member-handle">'+handle+'</div></div><div class="member-actions">'+btns+'</div></div>';
+  }).join('');
+  openSheet('ov-members');
+}
+
+function showMemberProfile(tgId) {
+  const m = _members.find(x => String(x.tg_id) === String(tgId));
+  if (!m) return;
+  const name = m.display_name || m.tg_name || '?';
+  const color = avaColor(m.tg_id);
+
+  if (m.tg_photo) {
+    el('mp-ava').innerHTML = '<img src="'+esc(m.tg_photo)+'">';
+  } else {
+    el('mp-ava').style.background = color;
+    el('mp-ava').textContent = avaInitial(name);
+  }
+  el('mp-name').textContent = name;
+  if (m.tg_username) {
+    el('mp-handle').innerHTML = '<a href="https://t.me/'+esc(m.tg_username)+'" target="_blank">@'+esc(m.tg_username)+'</a>';
+  } else {
+    el('mp-handle').textContent = '';
+  }
+  el('mp-phone').textContent = '';
+  el('mp-role').style.display = m.role === 'admin' ? '' : 'none';
+
+  let acts = '';
+  if (m.tg_username) {
+    acts += '<a class="btn btn-ghost" href="https://t.me/'+esc(m.tg_username)+'" target="_blank" style="flex:1;text-decoration:none;gap:4px"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.248-2.04 9.61c-.15.673-.544.838-1.101.52l-3.038-2.238-1.466 1.41c-.162.162-.298.298-.611.298l.217-3.084 5.613-5.07c.244-.217-.053-.337-.378-.12L7.06 14.46l-2.987-.94c-.66-.207-.673-.66.138-.977l10.877-4.193c.55-.2 1.031.134.474.898z"/></svg> Telegram</a>';
+  }
+  if (String(m.tg_id) !== String(S.user?.tgId)) {
+    acts += '<button class="btn btn-accent" style="flex:1;gap:4px" onclick="closeSheet(\'ov-member-profile\');closeSheet(\'ov-members\');goTab(2);setTimeout(()=>{el(\'chat-input\').focus()},400)"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#fff" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg> Написать</button>';
+  }
+  el('mp-actions').innerHTML = acts;
+  openSheet('ov-member-profile');
+}
+
 function renderQR() {
   const url = location.origin + '?join=' + S.tripId;
   const img = el('prof-qr-img');
@@ -1531,6 +1629,8 @@ function renderQR() {
 ═══════════════════════════════════════════ */
 async function loadMembers() {
   _members = await sbGet('members', 'trip_id=eq.'+S.tripId+'&order=joined_at.asc');
+  const mc = el('members-count');
+  if (mc) mc.textContent = _members.length;
 }
 
 async function loadSchedule() {
@@ -1667,7 +1767,7 @@ function renderChat() {
     }
     const isMine = String(m.author_tg_id) === String(S.user?.tgId);
     const cls = 'chat-bubble ' + (isMine ? 'mine' : 'other') + (m.is_pinned ? ' pinned' : '');
-    const name = isMine ? '' : '<div class="cb-name">'+(m.is_pinned?'📌 ':'')+esc(m.author_name||'Организатор')+'</div>';
+    const name = isMine ? '' : '<div class="cb-name" style="cursor:pointer" onclick="showMemberProfile(\''+m.author_tg_id+'\')">'+(m.is_pinned?'&#128204; ':'')+esc(m.author_name||'Организатор')+'</div>';
     const time = '<div class="cb-time">'+pad(t.getHours())+':'+pad(t.getMinutes())+'</div>';
     html += '<div class="'+cls+'">'+name+'<div>'+esc(m.text)+'</div>'+time+'</div>';
   });
@@ -1811,36 +1911,29 @@ function avaInitial(name) { return (name||'?').charAt(0).toUpperCase(); }
 function renderBalance() {
   const balances = calcBalances();
   const settles = calcSettlements(balances);
+  const myBal = balances[S.user?.tgId] || 0;
   const owedToMe = settles.filter(s => s.to === S.user?.tgId);
   const iOwe = settles.filter(s => s.from === S.user?.tgId);
 
-  let myHtml = '';
+  let myCardHtml = '';
 
   if (owedToMe.length) {
-    myHtml += '<div class="bal-section-hdr" style="color:var(--green)">тебе должны</div>';
-    myHtml += owedToMe.map(s => {
-      const n = memberName(s.from); const c = avaColor(s.from);
-      return '<div class="bal-debt-row"><div class="debt-ava" style="background:'+c+'">'+avaInitial(n)+'</div><div class="debt-name">'+esc(n)+'</div><div class="debt-amt" style="color:var(--green)">'+fmtMoney(s.amount)+'</div></div>';
-    }).join('');
+    const names = owedToMe.map(s => memberName(s.from)).join(', ');
+    myCardHtml = '<div class="bal-my-card" onclick="showMyDebts()"><div class="bal-my-icon" style="background:var(--green-bg)">&#129297;</div><div class="bal-my-text"><div class="bal-my-title" style="color:var(--green)">тебе должны '+fmtMoney(Math.abs(Math.round(myBal)))+'</div><div class="bal-my-sub">'+esc(names)+' должны вернуть тебе деньги</div></div><div class="bal-my-arrow">&#8250;</div></div>';
   }
-
   if (iOwe.length) {
-    myHtml += '<div class="bal-section-hdr" style="color:var(--red);'+(owedToMe.length?'margin-top:16px':'')+'">ты должен</div>';
-    myHtml += iOwe.map(s => {
-      const n = memberName(s.to); const c = avaColor(s.to);
-      return '<div class="bal-debt-row"><div class="debt-ava" style="background:'+c+'">'+avaInitial(n)+'</div><div class="debt-name">'+esc(n)+'</div><div class="debt-amt" style="color:var(--red)">'+fmtMoney(s.amount)+'</div></div>';
-    }).join('');
+    const names = iOwe.map(s => memberName(s.to)).join(', ');
+    myCardHtml += '<div class="bal-my-card" onclick="showMyDebts()" style="'+(owedToMe.length?'margin-top:8px':'')+'"><div class="bal-my-icon" style="background:var(--red-bg)">&#128184;</div><div class="bal-my-text"><div class="bal-my-title" style="color:var(--red)">ты должен '+fmtMoney(Math.abs(iOwe.reduce((s,d)=>s+d.amount,0)))+'</div><div class="bal-my-sub">Вернуть деньги: '+esc(names)+'</div></div><div class="bal-my-arrow">&#8250;</div></div>';
   }
-
   if (!owedToMe.length && !iOwe.length) {
-    myHtml = '<div class="bal-zero"><div style="font-size:32px;margin-bottom:8px">&#9996;&#65039;</div><div style="font-size:15px;font-weight:700">ты никому не должен</div><div style="font-size:13px;color:var(--sub);margin-top:4px">Все расчёты в порядке</div></div>';
+    myCardHtml = '<div class="bal-my-card" onclick="showMyDebts()"><div class="bal-my-icon" style="background:var(--green-bg)">&#128077;</div><div class="bal-my-text"><div class="bal-my-title">все в порядке!</div><div class="bal-my-sub">тебе не нужно ничего уравновешивать</div></div><div class="bal-my-arrow">&#8250;</div></div>';
   }
 
   if (settles.length) {
-    myHtml += '<button class="bal-all-btn" onclick="showDebts()">Посмотреть все предложения возмещения</button>';
+    myCardHtml += '<button class="bal-all-btn" onclick="showDebts()">посмотреть все предложенные возмещения</button>';
   }
 
-  el('bal-my-section').innerHTML = myHtml;
+  el('bal-my-section').innerHTML = myCardHtml;
 
   // Sort buttons
   el('bal-sort').innerHTML = [['name','По имени'],['low','Минимум'],['high','Максимум']].map(([k,l]) =>
@@ -1858,6 +1951,44 @@ function renderBalance() {
     const color = avaColor(e.tgId);
     return '<div class="card balance-item"><div class="balance-ava" style="background:'+color+'">'+avaInitial(e.name)+'</div><div class="balance-name">'+esc(e.name)+(isMe?' <span class="balance-you">я</span>':'')+'</div><span class="balance-val '+(e.bal>=0?'green':'red')+'">'+( e.bal>=0?'+':'')+fmtMoney(Math.round(e.bal))+'</span></div>';
   }).join('');
+}
+
+function showMyDebts() {
+  const balances = calcBalances();
+  const settles = calcSettlements(balances);
+  const myBal = balances[S.user?.tgId] || 0;
+  const owedToMe = settles.filter(s => s.to === S.user?.tgId);
+  const iOwe = settles.filter(s => s.from === S.user?.tgId);
+
+  let headerHtml = '';
+  if (owedToMe.length) {
+    headerHtml = '<div class="debts-label">тебе должны</div><div class="debts-total green">'+fmtMoney(Math.abs(Math.round(myBal)))+'</div>';
+  } else if (iOwe.length) {
+    headerHtml = '<div class="debts-label">ты должен</div><div class="debts-total red">'+fmtMoney(Math.abs(Math.round(myBal)))+'</div>';
+  } else {
+    headerHtml = '<div style="font-size:32px;margin-bottom:4px">&#128077;</div><div class="debts-label">все в порядке!</div>';
+  }
+  el('debts-header').innerHTML = headerHtml;
+
+  let listHtml = '';
+  if (owedToMe.length) {
+    listHtml += owedToMe.map(s => {
+      const name = memberName(s.from); const color = avaColor(s.from);
+      return '<div class="card debt-card"><div class="debt-card-top"><div class="debt-ava" style="background:'+color+'">'+avaInitial(name)+'</div><div class="debt-info"><div class="debt-name">'+esc(name)+'</div><div class="debt-dir">должен тебе</div></div><div class="debt-amount" style="color:var(--green)">'+fmtMoney(s.amount)+'</div></div><div class="debt-actions"><button class="btn" style="background:var(--green);color:#fff" onclick="confirmSettle(\''+s.from+'\',\''+s.to+'\','+s.amount+')">Получено</button></div></div>';
+    }).join('');
+  }
+  if (iOwe.length) {
+    listHtml += iOwe.map(s => {
+      const name = memberName(s.to); const color = avaColor(s.to);
+      return '<div class="card debt-card"><div class="debt-card-top"><div class="debt-ava" style="background:'+color+'">'+avaInitial(name)+'</div><div class="debt-info"><div class="debt-name">'+esc(name)+'</div><div class="debt-dir">ты должен</div></div><div class="debt-amount" style="color:var(--red)">'+fmtMoney(s.amount)+'</div></div></div>';
+    }).join('');
+  }
+  if (!owedToMe.length && !iOwe.length) {
+    listHtml = '<div style="text-align:center;padding:24px;color:var(--sub)">У тебя нет активных долгов</div>';
+  }
+
+  el('debts-list').innerHTML = listHtml;
+  openSheet('ov-debts');
 }
 
 function showDebts() {
