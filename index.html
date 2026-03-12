@@ -433,9 +433,8 @@ body{margin:0;padding:0;height:100%;font-family:'Manrope',system-ui,sans-serif;f
 
     <div id="wl-code-block" style="display:none;margin-top:16px;text-align:center">
       <p style="font-size:13px;color:var(--sub);margin-bottom:12px">Нажми «Старт» в боте Telegram</p>
-      <div style="display:flex;flex-direction:column;gap:8px;align-items:center">
+      <div style="display:flex;gap:8px;align-items:center;justify-content:center">
         <button class="btn btn-ghost btn-sm" onclick="openTg()" style="width:auto">Открыть Telegram</button>
-        <button class="btn btn-accent btn-sm" id="wl-back-btn" onclick="window.focus()" style="width:auto;display:none">Вернуться в приложение</button>
       </div>
       <p id="wl-code-status" style="font-size:12px;color:var(--ph);margin-top:10px">Ожидаем подтверждение...</p>
     </div>
@@ -1146,9 +1145,7 @@ async function startTgAuth() {
 
 function openTg() {
   if (_tgCode) {
-    const backBtn = el('wl-back-btn');
-    if (backBtn) backBtn.style.display = '';
-    window.open('https://t.me/' + BOT_NAME + '?start=' + _tgCode, '_blank');
+    location.href = 'https://t.me/' + BOT_NAME + '?start=' + _tgCode;
   }
 }
 
@@ -1250,29 +1247,55 @@ async function startQRScan() {
     if (!video) { stream.getTracks().forEach(t => t.stop()); return; }
     video.srcObject = stream;
 
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+    function handleQRResult(data) {
+      const match = data.match(/[?&]join=([a-f0-9-]+)/i);
+      if (match) {
+        stream.getTracks().forEach(t => t.stop());
+        closeQRScanner();
+        joinExistingUserToTrip(match[1]);
+        return true;
+      }
+      return false;
+    }
+
     if ('BarcodeDetector' in window) {
       const detector = new BarcodeDetector({ formats: ['qr_code'] });
       const scanLoop = async () => {
         if (!el('qr-scanner-overlay')) { stream.getTracks().forEach(t => t.stop()); return; }
         try {
           const barcodes = await detector.detect(video);
-          if (barcodes.length > 0) {
-            const url = barcodes[0].rawValue;
-            const match = url.match(/[?&]join=([a-f0-9-]+)/i);
-            if (match) {
-              stream.getTracks().forEach(t => t.stop());
-              closeQRScanner();
-              joinExistingUserToTrip(match[1]);
-              return;
-            }
-          }
+          if (barcodes.length > 0 && handleQRResult(barcodes[0].rawValue)) return;
         } catch {}
         requestAnimationFrame(scanLoop);
       };
       video.onloadedmetadata = () => scanLoop();
     } else {
-      const hint = el('qr-scanner-overlay')?.querySelector('div:last-child');
-      if (hint) hint.textContent = 'BarcodeDetector не поддерживается. Отсканируй QR камерой телефона.';
+      // Load jsQR as fallback
+      const s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js';
+      s.onload = () => {
+        const scanLoop = () => {
+          if (!el('qr-scanner-overlay')) { stream.getTracks().forEach(t => t.stop()); return; }
+          if (video.readyState === video.HAVE_ENOUGH_DATA) {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const code = jsQR(imgData.data, imgData.width, imgData.height, { inversionAttempts: 'dontInvert' });
+            if (code && code.data && handleQRResult(code.data)) return;
+          }
+          requestAnimationFrame(scanLoop);
+        };
+        scanLoop();
+      };
+      s.onerror = () => {
+        const hint = el('qr-scanner-overlay')?.querySelector('div:last-child');
+        if (hint) hint.textContent = 'Ошибка загрузки сканера. Отсканируй QR камерой телефона.';
+      };
+      document.head.appendChild(s);
     }
   } catch {
     closeQRScanner();
