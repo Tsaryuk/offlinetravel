@@ -194,26 +194,28 @@ async function delEvent(id) {
 
 /* ═══ PLACES ═══ */
 function renderPlacesAdmin() {
-  const cats=['hotel','restaurant','sight','transport','other'];
+  const cats=[{key:'housing',label:'🏨 Жилье'},{key:'food',label:'🍽 Еда'},{key:'sight',label:'🏛 Достопримечательности'},{key:'transport',label:'🚕 Транспорт'},{key:'other',label:'📦 Другое'}];
   el('panel-places').innerHTML =
     '<h2>Добавить место</h2>'+
     '<div class="form-group"><div class="form-label">Название</div><input class="field" id="pl-name" placeholder="Гостиница Астория"></div>'+
     '<div class="form-group"><div class="form-label">Адрес</div><input class="field" id="pl-addr" placeholder="Большая Морская ул., 39"></div>'+
-    '<div class="form-group"><div class="form-label">Ссылка на карту</div><input class="field" id="pl-map" placeholder="https://yandex.ru/maps/..."></div>'+
-    '<div class="form-row"><div class="form-group"><div class="form-label">Категория</div><select class="field" id="pl-cat">'+cats.map(c=>'<option value="'+c+'">'+c+'</option>').join('')+'</select></div><div class="form-group"><div class="form-label">Порядок</div><input class="field" type="number" id="pl-order" value="0"></div></div>'+
-    '<div class="form-group"><div class="form-label">Описание</div><input class="field" id="pl-desc" placeholder="Необязательно"></div>'+
+    '<div class="form-group"><div class="form-label">Фото URL</div><input class="field" id="pl-photo" placeholder="https://...jpg"></div>'+
+    '<div class="form-group"><div class="form-label">Ссылка на карту (необязательно)</div><input class="field" id="pl-map" placeholder="https://yandex.ru/maps/..."></div>'+
+    '<div class="form-row"><div class="form-group"><div class="form-label">Широта (lat)</div><input class="field" type="number" step="any" id="pl-lat" placeholder="59.9342"></div><div class="form-group"><div class="form-label">Долгота (lng)</div><input class="field" type="number" step="any" id="pl-lng" placeholder="30.3064"></div></div>'+
+    '<div class="form-row"><div class="form-group"><div class="form-label">Категория</div><select class="field" id="pl-cat">'+cats.map(c=>'<option value="'+c.key+'">'+c.label+'</option>').join('')+'</select></div><div class="form-group"><div class="form-label">Порядок</div><input class="field" type="number" id="pl-order" value="0"></div></div>'+
+    '<div class="form-group"><div class="form-label">Описание</div><textarea class="field" id="pl-desc" rows="3" placeholder="Необязательно"></textarea></div>'+
     '<button class="btn btn-accent btn-sm" onclick="addPlace()">Добавить</button>'+
     '<h2>Все места</h2>'+
     (_places.length ?
-      '<table><tr><th>Название</th><th>Адрес</th><th>Категория</th><th></th></tr>'+
-      _places.map(p=>'<tr><td>'+esc(p.name)+'</td><td style="color:var(--sub)">'+esc(p.address||'')+'</td><td><span class="badge badge-accent">'+p.category+'</span></td><td><button class="btn btn-red btn-sm" onclick="delPlace(\''+p.id+'\')">X</button></td></tr>').join('')+
+      '<table><tr><th>Фото</th><th>Название</th><th>Адрес</th><th>Категория</th><th>Координаты</th><th></th></tr>'+
+      _places.map(p=>'<tr><td>'+(p.photo_url?'<img src="'+esc(p.photo_url)+'" style="width:40px;height:40px;object-fit:cover;border-radius:4px">':'—')+'</td><td>'+esc(p.name)+'</td><td style="color:var(--sub)">'+esc(p.address||'')+'</td><td><span class="badge badge-accent">'+p.category+'</span></td><td style="color:var(--sub);font-size:11px">'+(p.lat?p.lat+', '+p.lng:'—')+'</td><td><button class="btn btn-red btn-sm" onclick="delPlace(\''+p.id+'\')">X</button></td></tr>').join('')+
       '</table>' : '<div class="empty">Нет мест</div>');
 }
 
 async function addPlace() {
   const name=el('pl-name').value.trim();
   if(!name){toast('Введи название');return;}
-  await sbPost('places',{trip_id:TRIP_ID,name,address:el('pl-addr').value.trim()||null,map_url:el('pl-map').value.trim()||null,category:el('pl-cat').value,sort_order:parseInt(el('pl-order').value)||0,description:el('pl-desc').value.trim()||null});
+  await sbPost('places',{trip_id:TRIP_ID,name,address:el('pl-addr').value.trim()||null,photo_url:el('pl-photo').value.trim()||null,map_url:el('pl-map').value.trim()||null,lat:parseFloat(el('pl-lat').value)||null,lng:parseFloat(el('pl-lng').value)||null,category:el('pl-cat').value,sort_order:parseInt(el('pl-order').value)||0,description:el('pl-desc').value.trim()||null});
   toast('Место добавлено');
   _places=await sbGet('places','trip_id=eq.'+TRIP_ID+'&order=sort_order.asc,name.asc');
   renderPlacesAdmin();
