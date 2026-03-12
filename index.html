@@ -557,6 +557,7 @@ body{margin:0;padding:0;height:100%;font-family:'Manrope',system-ui,sans-serif;f
           <div class="exp-section-title">Баланс участников</div>
           <div class="balance-sort" id="bal-sort"></div>
           <div id="balance-list"></div>
+          <div id="bal-rates" style="margin-top:12px;padding:8px 12px;font-size:11px;color:var(--sub);line-height:1.5"></div>
         </div>
 
         <!-- SUB-TAB 2: PHOTOS -->
@@ -820,7 +821,7 @@ const CATS = [
    OFFLINE: IndexedDB Cache + Sync Queue
 ═══════════════════════════════════════════ */
 const DB_NAME = 'ot_offline';
-const DB_VER = 1;
+const DB_VER = 2;
 let _idb = null;
 
 function openIDB() {
@@ -831,6 +832,7 @@ function openIDB() {
       const db = e.target.result;
       if (!db.objectStoreNames.contains('cache')) db.createObjectStore('cache');
       if (!db.objectStoreNames.contains('queue')) db.createObjectStore('queue', { autoIncrement: true });
+      if (!db.objectStoreNames.contains('meta')) db.createObjectStore('meta');
     };
     req.onsuccess = e => { _idb = e.target.result; resolve(_idb); };
     req.onerror = () => reject(req.error);
@@ -951,7 +953,7 @@ async function syncQueue() {
   }
 }
 
-window.addEventListener('online', () => { syncQueue(); });
+window.addEventListener('online', () => { ensureRates(); syncQueue(); });
 window.addEventListener('offline', () => { updateOfflineBar(); });
 
 /* ═══════════════════════════════════════════
@@ -973,9 +975,67 @@ let _expCat='food', _expPayer=null;
 let _expOpType='expense', _expSplitType='equal', _expEditId=null, _expSubTab=0;
 let _expTransferFrom=null, _expTransferTo=null, _expPhotoFile=null, _expDetailId=null;
 let _expBalSort='name';
+let _baseCurrency='RUB';
+let _rates={};
+let _ratesUpdatedAt=0;
+const RATE_TTL=4*60*60*1000;
+const FALLBACK_RATES={USD:1,RUB:90,EUR:0.92,THB:35,TRY:32,GEL:2.7};
 let _supabase=null;
 
 const el = id => document.getElementById(id);
+
+/* ═══════════════════════════════════════════
+   EXCHANGE RATES
+═══════════════════════════════════════════ */
+async function fetchExchangeRates() {
+  try {
+    const r = await fetch('https://open.er-api.com/v6/latest/USD');
+    if (!r.ok) return;
+    const d = await r.json();
+    if (d.result === 'success' && d.rates) {
+      _rates = d.rates;
+      _ratesUpdatedAt = Date.now();
+      try { localStorage.setItem('ot_rates', JSON.stringify(_rates)); localStorage.setItem('ot_rates_ts', String(_ratesUpdatedAt)); } catch {}
+      try { await idbPut('meta', 'rates', { value:_rates, ts:_ratesUpdatedAt }); } catch {}
+    }
+  } catch {}
+}
+function loadCachedRates() {
+  try {
+    const s = localStorage.getItem('ot_rates');
+    const ts = parseInt(localStorage.getItem('ot_rates_ts')||'0');
+    if (s && ts) { _rates = JSON.parse(s); _ratesUpdatedAt = ts; return; }
+  } catch {}
+  _rates = {...FALLBACK_RATES};
+  _ratesUpdatedAt = 0;
+}
+async function ensureRates() {
+  if (!Object.keys(_rates).length) {
+    loadCachedRates();
+    if (!_ratesUpdatedAt) {
+      try {
+        const cached = await idbGet('meta', 'rates');
+        if (cached && cached.value) { _rates = cached.value; _ratesUpdatedAt = cached.ts || 0; }
+      } catch {}
+    }
+    if (!Object.keys(_rates).length) { _rates = {...FALLBACK_RATES}; }
+  }
+  if (navigator.onLine && (Date.now() - _ratesUpdatedAt > RATE_TTL)) await fetchExchangeRates();
+}
+function toBase(amount, fromCur) {
+  if (!fromCur || fromCur === _baseCurrency) return amount;
+  const rFrom = _rates[fromCur];
+  const rTo = _rates[_baseCurrency];
+  if (!rFrom || !rTo) return amount;
+  return amount / rFrom * rTo;
+}
+function formatRate(fromCur) {
+  const rFrom = _rates[fromCur];
+  const rTo = _rates[_baseCurrency];
+  if (!rFrom || !rTo) return '';
+  const rate = rTo / rFrom;
+  return '1 ' + fromCur + ' = ' + rate.toFixed(2) + ' ' + (CUR_SYM[_baseCurrency]||_baseCurrency);
+}
 
 /* ═══════════════════════════════════════════
    SUPABASE HELPERS
@@ -1481,7 +1541,8 @@ async function bootApp() {
     loadSchedule(),
     loadPlaces(),
     loadMessages(),
-    loadExpenses()
+    loadExpenses(),
+    ensureRates()
   ]);
 
   // Update UI with loaded member roles
@@ -1678,6 +1739,7 @@ async function loadSchedule() {
   const trips = await sbGet('trips', 'id=eq.'+S.tripId);
   const trip = trips?.[0];
   if (!trip) return;
+  _baseCurrency = trip.base_currency || 'RUB';
 
   // Build day tabs
   const start = new Date(trip.start_date + 'T00:00:00');
@@ -1941,13 +2003,13 @@ function renderExpensesList() {
   const balances = calcBalances();
   const myBal = balances[S.user?.tgId] || 0;
   const onlyExpenses = _expenses.filter(e => (e.op_type||'expense') === 'expense');
-  const totalSpent = onlyExpenses.reduce((s,e) => s + parseFloat(e.amount), 0);
+  const totalSpent = onlyExpenses.reduce((s,e) => s + toBase(parseFloat(e.amount), e.currency||'RUB'), 0);
 
   const myExpenses = onlyExpenses.filter(e => e.paid_by === S.user?.tgId);
-  const mySpent = myExpenses.reduce((s,e) => s + parseFloat(e.amount), 0);
+  const mySpent = myExpenses.reduce((s,e) => s + toBase(parseFloat(e.amount), e.currency||'RUB'), 0);
   el('exp-summary').innerHTML =
-    '<div class="exp-stat"><div class="exp-stat-val">'+fmtMoney(mySpent)+'</div><div class="exp-stat-lbl">Мои расходы</div></div>' +
-    '<div class="exp-stat"><div class="exp-stat-val">'+fmtMoney(totalSpent)+'</div><div class="exp-stat-lbl">Общие расходы</div></div>';
+    '<div class="exp-stat"><div class="exp-stat-val">'+fmtMoney(mySpent,_baseCurrency)+'</div><div class="exp-stat-lbl">Мои расходы</div></div>' +
+    '<div class="exp-stat"><div class="exp-stat-val">'+fmtMoney(totalSpent,_baseCurrency)+'</div><div class="exp-stat-lbl">Общие расходы</div></div>';
 
   if (!_expenses.length) {
     el('expenses-list').innerHTML = '<div class="empty-wrap"><div class="empty-illustration">💸</div><div class="empty-title">Операций пока нет</div><div class="empty-sub">Добавь первый расход, доход или перевод.</div></div>';
@@ -2021,11 +2083,11 @@ function renderBalance() {
 
   if (owedToMe.length) {
     const names = owedToMe.map(s => memberName(s.from)).join(', ');
-    myCardHtml = '<div class="bal-my-card" onclick="showMyDebts()"><div class="bal-my-icon" style="background:var(--green-bg)">&#129297;</div><div class="bal-my-text"><div class="bal-my-title" style="color:var(--green)">тебе должны '+fmtMoney(Math.abs(Math.round(myBal)))+'</div><div class="bal-my-sub">'+esc(names)+' должны вернуть тебе деньги</div></div><div class="bal-my-arrow">&#8250;</div></div>';
+    myCardHtml = '<div class="bal-my-card" onclick="showMyDebts()"><div class="bal-my-icon" style="background:var(--green-bg)">&#129297;</div><div class="bal-my-text"><div class="bal-my-title" style="color:var(--green)">тебе должны '+fmtMoney(Math.abs(Math.round(myBal)),_baseCurrency)+'</div><div class="bal-my-sub">'+esc(names)+' должны вернуть тебе деньги</div></div><div class="bal-my-arrow">&#8250;</div></div>';
   }
   if (iOwe.length) {
     const names = iOwe.map(s => memberName(s.to)).join(', ');
-    myCardHtml += '<div class="bal-my-card" onclick="showMyDebts()" style="'+(owedToMe.length?'margin-top:8px':'')+'"><div class="bal-my-icon" style="background:var(--red-bg)">&#128184;</div><div class="bal-my-text"><div class="bal-my-title" style="color:var(--red)">ты должен '+fmtMoney(Math.abs(iOwe.reduce((s,d)=>s+d.amount,0)))+'</div><div class="bal-my-sub">Вернуть деньги: '+esc(names)+'</div></div><div class="bal-my-arrow">&#8250;</div></div>';
+    myCardHtml += '<div class="bal-my-card" onclick="showMyDebts()" style="'+(owedToMe.length?'margin-top:8px':'')+'"><div class="bal-my-icon" style="background:var(--red-bg)">&#128184;</div><div class="bal-my-text"><div class="bal-my-title" style="color:var(--red)">ты должен '+fmtMoney(Math.abs(iOwe.reduce((s,d)=>s+d.amount,0)),_baseCurrency)+'</div><div class="bal-my-sub">Вернуть деньги: '+esc(names)+'</div></div><div class="bal-my-arrow">&#8250;</div></div>';
   }
   if (!owedToMe.length && !iOwe.length) {
     myCardHtml = '<div class="bal-my-card" onclick="showMyDebts()"><div class="bal-my-icon" style="background:var(--green-bg)">&#128077;</div><div class="bal-my-text"><div class="bal-my-title">все в порядке!</div><div class="bal-my-sub">тебе не нужно ничего уравновешивать</div></div><div class="bal-my-arrow">&#8250;</div></div>';
@@ -2051,8 +2113,17 @@ function renderBalance() {
   el('balance-list').innerHTML = entries.map(e => {
     const isMe = e.tgId === S.user?.tgId;
     const color = avaColor(e.tgId);
-    return '<div class="card balance-item"><div class="balance-ava" style="background:'+color+'">'+avaInitial(e.name)+'</div><div class="balance-name">'+esc(e.name)+(isMe?' <span class="balance-you">я</span>':'')+'</div><span class="balance-val '+(e.bal>=0?'green':'red')+'">'+( e.bal>=0?'+':'')+fmtMoney(Math.round(e.bal))+'</span></div>';
+    return '<div class="card balance-item"><div class="balance-ava" style="background:'+color+'">'+avaInitial(e.name)+'</div><div class="balance-name">'+esc(e.name)+(isMe?' <span class="balance-you">я</span>':'')+'</div><span class="balance-val '+(e.bal>=0?'green':'red')+'">'+( e.bal>=0?'+':'')+fmtMoney(Math.round(e.bal),_baseCurrency)+'</span></div>';
   }).join('');
+
+  const usedCurs = [...new Set(_expenses.map(e => e.currency||'RUB').filter(c => c !== _baseCurrency))];
+  if (usedCurs.length && Object.keys(_rates).length) {
+    const rateStrs = usedCurs.map(c => formatRate(c)).filter(Boolean).join(' | ');
+    const updTime = _ratesUpdatedAt ? new Date(_ratesUpdatedAt).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'}) : '';
+    el('bal-rates').innerHTML = rateStrs + (updTime ? ' <span style="opacity:.6">· обновлено '+updTime+'</span>' : '');
+  } else {
+    el('bal-rates').innerHTML = '';
+  }
 }
 
 function showMyDebts() {
@@ -2064,9 +2135,9 @@ function showMyDebts() {
 
   let headerHtml = '';
   if (owedToMe.length) {
-    headerHtml = '<div class="debts-label">тебе должны</div><div class="debts-total green">'+fmtMoney(Math.abs(Math.round(myBal)))+'</div>';
+    headerHtml = '<div class="debts-label">тебе должны</div><div class="debts-total green">'+fmtMoney(Math.abs(Math.round(myBal)),_baseCurrency)+'</div>';
   } else if (iOwe.length) {
-    headerHtml = '<div class="debts-label">ты должен</div><div class="debts-total red">'+fmtMoney(Math.abs(Math.round(myBal)))+'</div>';
+    headerHtml = '<div class="debts-label">ты должен</div><div class="debts-total red">'+fmtMoney(Math.abs(Math.round(myBal)),_baseCurrency)+'</div>';
   } else {
     headerHtml = '<div style="font-size:32px;margin-bottom:4px">&#128077;</div><div class="debts-label">все в порядке!</div>';
   }
@@ -2076,13 +2147,13 @@ function showMyDebts() {
   if (owedToMe.length) {
     listHtml += owedToMe.map(s => {
       const name = memberName(s.from); const color = avaColor(s.from);
-      return '<div class="card debt-card"><div class="debt-card-top"><div class="debt-ava" style="background:'+color+'">'+avaInitial(name)+'</div><div class="debt-info"><div class="debt-name">'+esc(name)+'</div><div class="debt-dir">должен тебе</div></div><div class="debt-amount" style="color:var(--green)">'+fmtMoney(s.amount)+'</div></div><div class="debt-actions"><button class="btn" style="background:var(--green);color:#fff" onclick="confirmSettle(\''+s.from+'\',\''+s.to+'\','+s.amount+')">Получено</button></div></div>';
+      return '<div class="card debt-card"><div class="debt-card-top"><div class="debt-ava" style="background:'+color+'">'+avaInitial(name)+'</div><div class="debt-info"><div class="debt-name">'+esc(name)+'</div><div class="debt-dir">должен тебе</div></div><div class="debt-amount" style="color:var(--green)">'+fmtMoney(s.amount,_baseCurrency)+'</div></div><div class="debt-actions"><button class="btn" style="background:var(--green);color:#fff" onclick="confirmSettle(\''+s.from+'\',\''+s.to+'\','+s.amount+')">Получено</button></div></div>';
     }).join('');
   }
   if (iOwe.length) {
     listHtml += iOwe.map(s => {
       const name = memberName(s.to); const color = avaColor(s.to);
-      return '<div class="card debt-card"><div class="debt-card-top"><div class="debt-ava" style="background:'+color+'">'+avaInitial(name)+'</div><div class="debt-info"><div class="debt-name">'+esc(name)+'</div><div class="debt-dir">ты должен</div></div><div class="debt-amount" style="color:var(--red)">'+fmtMoney(s.amount)+'</div></div></div>';
+      return '<div class="card debt-card"><div class="debt-card-top"><div class="debt-ava" style="background:'+color+'">'+avaInitial(name)+'</div><div class="debt-info"><div class="debt-name">'+esc(name)+'</div><div class="debt-dir">ты должен</div></div><div class="debt-amount" style="color:var(--red)">'+fmtMoney(s.amount,_baseCurrency)+'</div></div></div>';
     }).join('');
   }
   if (!owedToMe.length && !iOwe.length) {
@@ -2098,7 +2169,7 @@ function showDebts() {
   const settles = calcSettlements(balances);
   const total = settles.reduce((s,d) => s + d.amount, 0);
 
-  el('debts-header').innerHTML = '<div class="debts-label">Все предложения возмещения</div><div class="debts-total" style="color:var(--text)">'+fmtMoney(total)+'</div>';
+  el('debts-header').innerHTML = '<div class="debts-label">Все предложения возмещения</div><div class="debts-total" style="color:var(--text)">'+fmtMoney(total,_baseCurrency)+'</div>';
 
   const mine = settles.filter(s => s.from === S.user?.tgId || s.to === S.user?.tgId);
   const others = settles.filter(s => s.from !== S.user?.tgId && s.to !== S.user?.tgId);
@@ -2115,7 +2186,7 @@ function showDebts() {
     if (isToMe) { dir = esc(fromN) + ' должен тебе'; amtColor = 'var(--green)'; }
     else if (isMyDebt) { dir = 'ты должен ' + esc(toN); amtColor = 'var(--red)'; }
     else { dir = esc(fromN) + ' &rarr; ' + esc(toN); amtColor = 'var(--text)'; }
-    return '<div class="card debt-card"><div class="debt-card-top"><div class="debt-ava" style="background:'+color+'">'+avaInitial(fromN)+'</div><div class="debt-info"><div class="debt-name">'+dir+'</div><div class="debt-dir">'+fmtMoney(s.amount)+'</div></div><div class="debt-amount" style="color:'+amtColor+'">'+fmtMoney(s.amount)+'</div></div><div class="debt-actions"><button class="btn" style="background:var(--green);color:#fff" onclick="confirmSettle(\''+s.from+'\',\''+s.to+'\','+s.amount+')">Получено</button></div></div>';
+    return '<div class="card debt-card"><div class="debt-card-top"><div class="debt-ava" style="background:'+color+'">'+avaInitial(fromN)+'</div><div class="debt-info"><div class="debt-name">'+dir+'</div><div class="debt-dir">'+fmtMoney(s.amount,_baseCurrency)+'</div></div><div class="debt-amount" style="color:'+amtColor+'">'+fmtMoney(s.amount,_baseCurrency)+'</div></div><div class="debt-actions"><button class="btn" style="background:var(--green);color:#fff" onclick="confirmSettle(\''+s.from+'\',\''+s.to+'\','+s.amount+')">Получено</button></div></div>';
   }
 
   if (mine.length) {
@@ -2161,19 +2232,24 @@ function renderPhotos() {
 function calcBalances() {
   const bal = {};
   _members.forEach(m => bal[m.tg_id] = 0);
+  const eCur = {};
+  _expenses.forEach(e => eCur[e.id] = e.currency || 'RUB');
 
   _expenses.forEach(e => {
+    const cur = e.currency || 'RUB';
+    const amt = toBase(parseFloat(e.amount), cur);
     const opType = e.op_type || 'expense';
     if (opType === 'transfer') {
-      bal[e.paid_by] = (bal[e.paid_by]||0) + parseFloat(e.amount);
-      bal[e.transfer_to] = (bal[e.transfer_to]||0) - parseFloat(e.amount);
+      bal[e.paid_by] = (bal[e.paid_by]||0) + amt;
+      bal[e.transfer_to] = (bal[e.transfer_to]||0) - amt;
     } else {
-      bal[e.paid_by] = (bal[e.paid_by]||0) + parseFloat(e.amount);
+      bal[e.paid_by] = (bal[e.paid_by]||0) + amt;
     }
   });
 
   _splits.forEach(sp => {
-    bal[sp.member_tg_id] = (bal[sp.member_tg_id]||0) - parseFloat(sp.amount);
+    const cur = eCur[sp.expense_id] || 'RUB';
+    bal[sp.member_tg_id] = (bal[sp.member_tg_id]||0) - toBase(parseFloat(sp.amount), cur);
   });
 
   _settlements.forEach(s => {
@@ -2213,7 +2289,7 @@ function calcSettlements(balances) {
 function confirmSettle(fromId, toId, amount) {
   const fromN = memberName(fromId);
   const toN = memberName(toId);
-  const msg = esc(fromN) + ' &rarr; ' + esc(toN) + ': ' + fmtMoney(amount);
+  const msg = esc(fromN) + ' &rarr; ' + esc(toN) + ': ' + fmtMoney(amount,_baseCurrency);
   showConfirm('Отметить как полученное?', msg, async () => {
     closeSheet('ov-debts');
     await doSettle(fromId, toId, amount);
@@ -2294,9 +2370,9 @@ function showAddOperation(editId) {
     el('exp-form-sub').style.display = 'none';
     el('exp-inp-desc').value = '';
     el('exp-inp-amount').value = '';
-    el('exp-inp-currency').value = 'RUB';
+    el('exp-inp-currency').value = _baseCurrency;
     el('exp-tr-amount').value = '';
-    el('exp-tr-currency').value = 'RUB';
+    el('exp-tr-currency').value = _baseCurrency;
   }
 
   renderOpTypeChips();
@@ -2452,7 +2528,7 @@ function updateSplitPreview() {
       val = parseFloat(el('exp-members').querySelector('input.inp[data-tg="'+tg+'"]')?.value) || 0;
     }
 
-    sp.textContent = val ? fmtMoney(val) : '';
+    sp.textContent = val ? fmtMoney(val, el('exp-inp-currency')?.value||'RUB') : '';
     sp.classList.toggle('active', val > 0);
   });
 }
@@ -2712,13 +2788,15 @@ function showExpDetail(expId) {
   const cur = exp.currency || 'RUB';
   const t = new Date(exp.expense_date || exp.created_at);
 
+  const convNote = (cur !== _baseCurrency) ? ' ≈ ' + fmtMoney(toBase(parseFloat(exp.amount), cur), _baseCurrency) : '';
+
   if (opType === 'transfer') {
     el('exp-det-title').textContent = 'Перевод';
-    el('exp-det-sub').textContent = fmtMoney(parseFloat(exp.amount), cur) + ' — ' + memberName(exp.paid_by) + ' → ' + memberName(exp.transfer_to) + ' — ' + pad(t.getDate())+'.'+pad(t.getMonth()+1);
+    el('exp-det-sub').innerHTML = fmtMoney(parseFloat(exp.amount), cur) + (convNote ? '<span style="color:var(--sub);font-size:12px">'+convNote+'</span>' : '') + ' — ' + esc(memberName(exp.paid_by)) + ' → ' + esc(memberName(exp.transfer_to)) + ' — ' + pad(t.getDate())+'.'+pad(t.getMonth()+1);
     el('exp-det-splits').innerHTML = '';
   } else {
     el('exp-det-title').textContent = exp.description;
-    el('exp-det-sub').textContent = fmtMoney(parseFloat(exp.amount), cur) + ' — ' + memberName(exp.paid_by) + ' — ' + pad(t.getDate())+'.'+pad(t.getMonth()+1);
+    el('exp-det-sub').innerHTML = fmtMoney(parseFloat(exp.amount), cur) + (convNote ? '<span style="color:var(--sub);font-size:12px">'+convNote+'</span>' : '') + ' — ' + esc(memberName(exp.paid_by)) + ' — ' + pad(t.getDate())+'.'+pad(t.getMonth()+1);
     const splits = _splits.filter(s => s.expense_id === expId);
     el('exp-det-splits').innerHTML = splits.map(sp =>
       '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)"><span style="font-size:14px;font-weight:600">'+esc(memberName(sp.member_tg_id))+'</span><span style="font-size:14px;font-weight:700">'+fmtMoney(parseFloat(sp.amount), cur)+'</span></div>'
