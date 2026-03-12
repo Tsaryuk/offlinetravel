@@ -537,6 +537,13 @@ body{margin:0;padding:0;height:100%;font-family:'Manrope',system-ui,sans-serif;f
       <div class="screen-inner">
         <div class="page-hdr">
           <div class="page-hdr-title">Расходы</div>
+          <button id="pdf-btn" onclick="exportPDF()" style="display:none;background:none;border:none;cursor:pointer;padding:6px;color:var(--sub)">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+          </button>
         </div>
 
         <div class="exp-tabs">
@@ -975,6 +982,7 @@ let _expCat='food', _expPayer=null;
 let _expOpType='expense', _expSplitType='equal', _expEditId=null, _expSubTab=0;
 let _expTransferFrom=null, _expTransferTo=null, _expPhotoFile=null, _expDetailId=null;
 let _expBalSort='name';
+let _tripName='', _tripStart='', _tripEnd='';
 let _baseCurrency='RUB';
 let _rates={};
 let _ratesUpdatedAt=0;
@@ -1740,6 +1748,9 @@ async function loadSchedule() {
   const trip = trips?.[0];
   if (!trip) return;
   _baseCurrency = trip.base_currency || 'RUB';
+  _tripName = trip.name || '';
+  _tripStart = trip.start_date || '';
+  _tripEnd = trip.end_date || '';
 
   // Build day tabs
   const start = new Date(trip.start_date + 'T00:00:00');
@@ -2010,6 +2021,8 @@ function renderExpensesList() {
   el('exp-summary').innerHTML =
     '<div class="exp-stat"><div class="exp-stat-val">'+fmtMoney(mySpent,_baseCurrency)+'</div><div class="exp-stat-lbl">Мои расходы</div></div>' +
     '<div class="exp-stat"><div class="exp-stat-val">'+fmtMoney(totalSpent,_baseCurrency)+'</div><div class="exp-stat-lbl">Общие расходы</div></div>';
+
+  el('pdf-btn').style.display = _expenses.length ? '' : 'none';
 
   if (!_expenses.length) {
     el('expenses-list').innerHTML = '<div class="empty-wrap"><div class="empty-illustration">💸</div><div class="empty-title">Операций пока нет</div><div class="empty-sub">Добавь первый расход, доход или перевод.</div></div>';
@@ -2909,6 +2922,221 @@ function initRealtime() {
       .subscribe();
   };
   document.head.appendChild(script);
+}
+
+/* ═══════════════════════════════════════════
+   PDF EXPORT
+═══════════════════════════════════════════ */
+function loadScript(url) {
+  return new Promise((resolve, reject) => {
+    if (document.querySelector('script[src="'+url+'"]')) { resolve(); return; }
+    const s = document.createElement('script');
+    s.src = url; s.onload = resolve; s.onerror = reject;
+    document.head.appendChild(s);
+  });
+}
+
+let _pdfFontBase64 = null;
+async function loadPdfFont() {
+  if (_pdfFontBase64) return;
+  const r = await fetch('https://fonts.gstatic.com/s/roboto/v47/KFOmCnqEu92Fr1Mu4mxP.ttf');
+  const buf = await r.arrayBuffer();
+  let bin = ''; const bytes = new Uint8Array(buf);
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  _pdfFontBase64 = btoa(bin);
+}
+
+async function exportPDF() {
+  toast('Генерация PDF...');
+  try {
+    await Promise.all([
+      loadScript('https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js'),
+      loadPdfFont()
+    ]);
+    await loadScript('https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js');
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF('p','mm','a4');
+
+    doc.addFileToVFS('Roboto-Regular.ttf', _pdfFontBase64);
+    doc.addFont('Roboto-Regular.ttf', 'Roboto', 'normal');
+    doc.setFont('Roboto');
+
+    const pw = doc.internal.pageSize.getWidth();
+    const margin = 14;
+    let y = 18;
+
+    const addPage = () => { doc.addPage(); y = 18; };
+    const checkPage = (need) => { if (y + need > 280) addPage(); };
+
+    doc.setFontSize(18);
+    doc.text('Отчет по расходам', pw/2, y, { align:'center' });
+    y += 8;
+
+    doc.setFontSize(11);
+    doc.setTextColor(100);
+    if (_tripName) { doc.text(_tripName, pw/2, y, { align:'center' }); y += 5; }
+    if (_tripStart && _tripEnd) { doc.text(_tripStart + '  —  ' + _tripEnd, pw/2, y, { align:'center' }); y += 5; }
+    doc.text('Участников: ' + _members.length, pw/2, y, { align:'center' });
+    y += 10;
+    doc.setTextColor(0);
+
+    const onlyExpenses = _expenses.filter(e => {
+      const t = e.op_type || 'expense';
+      return t === 'expense' || t === 'income';
+    });
+    const transfers = _expenses.filter(e => (e.op_type||'expense') === 'transfer');
+    const totalBase = onlyExpenses.reduce((s,e) => s + toBase(parseFloat(e.amount), e.currency||'RUB'), 0);
+
+    const hasMultiCurrency = new Set(onlyExpenses.map(e => e.currency || 'RUB')).size > 1;
+
+    doc.setFontSize(13);
+    doc.text('Сводка', margin, y); y += 7;
+    doc.setFontSize(10);
+    doc.text('Всего расходов: ' + fmtMoney(totalBase, _baseCurrency), margin, y); y += 5;
+    doc.text('Операций: ' + onlyExpenses.length, margin, y); y += 5;
+
+    const catTotals = {};
+    onlyExpenses.forEach(e => {
+      const c = e.category || 'other';
+      catTotals[c] = (catTotals[c]||0) + toBase(parseFloat(e.amount), e.currency||'RUB');
+    });
+    const catRows = Object.entries(catTotals)
+      .sort((a,b) => b[1]-a[1])
+      .map(([c, total]) => {
+        const cat = CATS.find(x => x.id === c);
+        return [(cat ? cat.icon + ' ' + cat.label : c), fmtMoney(total, _baseCurrency)];
+      });
+
+    if (catRows.length) {
+      y += 2;
+      doc.autoTable({
+        startY: y,
+        head: [['Категория', 'Сумма']],
+        body: catRows,
+        margin: { left: margin, right: margin },
+        styles: { font: 'Roboto', fontSize: 9, cellPadding: 2 },
+        headStyles: { fillColor: [66,66,66] },
+        theme: 'grid'
+      });
+      y = doc.lastAutoTable.finalY + 8;
+    }
+
+    checkPage(20);
+    doc.setFontSize(13);
+    doc.text('Расходы', margin, y); y += 3;
+
+    const expHead = ['Дата', 'Описание', 'Категория', 'Кто платил', 'Сумма'];
+    if (hasMultiCurrency) expHead.push('В ' + (_baseCurrency));
+
+    const expRows = onlyExpenses
+      .sort((a,b) => (a.date||'').localeCompare(b.date||''))
+      .map(e => {
+        const cat = CATS.find(x => x.id === (e.category||'other'));
+        const cur = e.currency || 'RUB';
+        const row = [
+          e.date || '',
+          e.description || '',
+          cat ? cat.label : (e.category||''),
+          memberName(e.paid_by),
+          fmtMoney(parseFloat(e.amount), cur)
+        ];
+        if (hasMultiCurrency) {
+          row.push(cur !== _baseCurrency ? fmtMoney(toBase(parseFloat(e.amount), cur), _baseCurrency) : '');
+        }
+        return row;
+      });
+
+    doc.autoTable({
+      startY: y,
+      head: [expHead],
+      body: expRows,
+      margin: { left: margin, right: margin },
+      styles: { font: 'Roboto', fontSize: 8, cellPadding: 2, overflow: 'linebreak' },
+      headStyles: { fillColor: [66,66,66] },
+      columnStyles: { 1: { cellWidth: 40 } },
+      theme: 'grid'
+    });
+    y = doc.lastAutoTable.finalY + 8;
+
+    if (transfers.length) {
+      checkPage(15 + transfers.length * 5);
+      doc.setFontSize(13);
+      doc.text('Переводы', margin, y); y += 6;
+      doc.setFontSize(9);
+      transfers.forEach(t => {
+        checkPage(6);
+        const cur = t.currency || _baseCurrency;
+        doc.text(memberName(t.paid_by) + '  →  ' + memberName(t.transfer_to) + ':  ' + fmtMoney(parseFloat(t.amount), cur), margin, y);
+        y += 5;
+      });
+      y += 4;
+    }
+
+    const balances = calcBalances();
+    checkPage(20);
+    doc.setFontSize(13);
+    doc.text('Балансы', margin, y); y += 3;
+
+    const balRows = _members.map(m => {
+      const b = Math.round(balances[m.tg_id]||0);
+      return [memberName(m.tg_id), fmtMoney(b, _baseCurrency)];
+    });
+
+    doc.autoTable({
+      startY: y,
+      head: [['Участник', 'Баланс']],
+      body: balRows,
+      margin: { left: margin, right: margin },
+      styles: { font: 'Roboto', fontSize: 9, cellPadding: 2 },
+      headStyles: { fillColor: [66,66,66] },
+      theme: 'grid',
+      didParseCell: (data) => {
+        if (data.section === 'body' && data.column.index === 1) {
+          const raw = balances[_members[data.row.index]?.tg_id] || 0;
+          if (raw < -0.5) data.cell.styles.textColor = [200,50,50];
+          else if (raw > 0.5) data.cell.styles.textColor = [30,140,60];
+        }
+      }
+    });
+    y = doc.lastAutoTable.finalY + 8;
+
+    const settlements = calcSettlements(balances);
+    if (settlements.length) {
+      checkPage(15 + settlements.length * 5);
+      doc.setFontSize(13);
+      doc.text('Предложения по возмещению', margin, y); y += 6;
+      doc.setFontSize(9);
+      settlements.forEach(s => {
+        checkPage(6);
+        doc.text(memberName(s.from) + '  →  ' + memberName(s.to) + ':  ' + fmtMoney(s.amount, _baseCurrency), margin, y);
+        y += 5;
+      });
+    }
+
+    const totalPages = doc.internal.getNumberOfPages();
+    for (let p = 1; p <= totalPages; p++) {
+      doc.setPage(p);
+      doc.setFontSize(7);
+      doc.setTextColor(160);
+      doc.text('Offline.Travel  ·  ' + new Date().toLocaleDateString('ru-RU'), pw/2, 290, { align:'center' });
+      doc.setTextColor(0);
+    }
+
+    const filename = 'expenses_' + (_tripName||'trip').replace(/[^a-zA-Zа-яА-Я0-9]/g,'_') + '.pdf';
+    const blob = doc.output('blob');
+
+    if (navigator.share && navigator.canShare && navigator.canShare({ files: [new File([blob], filename, { type:'application/pdf' })] })) {
+      try {
+        await navigator.share({ files: [new File([blob], filename, { type:'application/pdf' })], title: 'Отчет по расходам' });
+        return;
+      } catch {}
+    }
+    doc.save(filename);
+  } catch (err) {
+    console.error('PDF export error:', err);
+    toast('Ошибка генерации PDF');
+  }
 }
 
 /* ═══════════════════════════════════════════
