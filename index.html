@@ -167,12 +167,23 @@ body{margin:0;padding:0;height:100%;font-family:'Manrope',system-ui,sans-serif;f
 .tl-place{font-size:12px;color:var(--accent);font-weight:600;margin-top:4px;display:flex;align-items:center;gap:4px;cursor:pointer}
 
 /* ─── PLACES ─── */
-.place-card{padding:14px 16px;margin-bottom:10px}
+.place-filter-tabs{display:flex;gap:6px;margin-bottom:16px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.place-filter-tabs::-webkit-scrollbar{display:none}
+.place-filter-tab{padding:8px 16px;border-radius:20px;border:1.5px solid var(--border);background:var(--surface);font-family:inherit;font-size:13px;font-weight:700;color:var(--sub);cursor:pointer;transition:all .15s;white-space:nowrap;flex-shrink:0}
+.place-filter-tab:active{transform:scale(.95)}
+.place-filter-tab.on{background:var(--text);border-color:var(--text);color:var(--bg)}
+.place-card{margin-bottom:10px;overflow:hidden}
+.place-card-photo{width:100%;height:160px;object-fit:cover;display:block}
+.place-card-body{padding:14px 16px}
 .place-name{font-size:15px;font-weight:700;margin-bottom:2px}
-.place-addr{font-size:13px;color:var(--sub);margin-bottom:6px}
-.place-desc{font-size:13px;color:var(--sub);line-height:1.4;margin-bottom:8px}
+.place-addr{font-size:13px;color:var(--sub);margin-bottom:6px;display:flex;align-items:flex-start;gap:4px}
+.place-addr svg{flex-shrink:0;margin-top:1px}
+.place-desc{font-size:13px;color:var(--sub);line-height:1.4;margin-bottom:8px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.place-desc.expanded{-webkit-line-clamp:unset}
+.place-desc-toggle{font-size:12px;font-weight:700;color:var(--accent);cursor:pointer;margin-bottom:8px;background:none;border:none;padding:0;font-family:inherit}
+.place-footer{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .place-cat{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;background:var(--accent-bg);color:var(--accent)}
-.place-map-btn{display:inline-flex;align-items:center;gap:4px;padding:6px 12px;border-radius:8px;background:var(--blue-bg);color:var(--blue);font-size:12px;font-weight:700;text-decoration:none;margin-left:8px}
+.place-route-btn{display:inline-flex;align-items:center;gap:4px;padding:6px 12px;border-radius:8px;background:var(--blue-bg);color:var(--blue);font-size:12px;font-weight:700;cursor:pointer;border:none;font-family:inherit;margin-left:auto}
 
 /* ─── CHAT ─── */
 .chat-wrap{display:flex;flex-direction:column;height:calc(100vh - var(--nav-h) - var(--safe-bot) - 10px)}
@@ -501,6 +512,7 @@ body{margin:0;padding:0;height:100%;font-family:'Manrope',system-ui,sans-serif;f
         <div class="page-hdr">
           <div class="page-hdr-title">Места</div>
         </div>
+        <div class="place-filter-tabs" id="place-filter-tabs"></div>
         <div id="places-list"></div>
       </div>
     </div>
@@ -736,6 +748,18 @@ body{margin:0;padding:0;height:100%;font-family:'Manrope',system-ui,sans-serif;f
 </div>
 
 <!-- ═══════════════════════════════════════════ -->
+<!-- ROUTE PICKER SHEET -->
+<!-- ═══════════════════════════════════════════ -->
+<div class="overlay" id="ov-route-picker">
+  <div class="sheet" id="sh-route-picker">
+    <div class="sheet-handle" id="sh-route-handle"></div>
+    <div class="sheet-title" style="text-align:center">Маршрут</div>
+    <div id="route-picker-addr" style="text-align:center;font-size:13px;color:var(--sub);margin-bottom:16px"></div>
+    <div id="route-picker-options"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
 <!-- PROFILE SHEET -->
 <!-- ═══════════════════════════════════════════ -->
 <div class="overlay" id="ov-profile">
@@ -937,6 +961,14 @@ let S = { user:null, tripId:null, curTab:0 };
 let _tgCode=null, _pollTimer=null, _notifTimer=null;
 let _members=[], _expenses=[], _splits=[], _settlements=[], _scheduleEvents=[], _places=[], _messages=[];
 let _selDay=null, _tripDays=[];
+let _placeFilter='all';
+const PLACE_CATS = {
+  housing:   { emoji:'🏨', label:'Жилье' },
+  food:      { emoji:'🍽', label:'Еда' },
+  sight:     { emoji:'🏛', label:'Достопримечательности' },
+  transport: { emoji:'🚕', label:'Транспорт' },
+  other:     { emoji:'📦', label:'Другое' }
+};
 let _expCat='food', _expPayer=null;
 let _expOpType='expense', _expSplitType='equal', _expEditId=null, _expSubTab=0;
 let _expTransferFrom=null, _expTransferTo=null, _expPhotoFile=null, _expDetailId=null;
@@ -1467,6 +1499,7 @@ async function bootApp() {
   initSheetDrag('sh-debts-handle', 'ov-debts');
   initSheetDrag('sh-members-handle', 'ov-members');
   initSheetDrag('sh-member-profile-handle', 'ov-member-profile');
+  initSheetDrag('sh-route-handle', 'ov-route-picker');
   initSheetDrag('sh-profile-handle', 'ov-profile');
 
   // Init pull-to-refresh on each screen
@@ -1665,6 +1698,10 @@ async function loadSchedule() {
 
 async function loadPlaces() {
   _places = await sbGet('places', 'trip_id=eq.'+S.tripId+'&order=sort_order.asc,name.asc');
+  _places.forEach(p => {
+    if (p.category === 'hotel') p.category = 'housing';
+    if (p.category === 'restaurant') p.category = 'food';
+  });
   renderPlaces();
 }
 
@@ -1742,15 +1779,73 @@ function openMap(url) {
    RENDER: PLACES
 ═══════════════════════════════════════════ */
 function renderPlaces() {
-  if (!_places.length) {
-    el('places-list').innerHTML = '<div class="empty-wrap"><div class="empty-illustration">📍</div><div class="empty-title">Места пока не добавлены</div><div class="empty-sub">Организатор добавит адреса отелей, ресторанов и достопримечательностей.</div></div>';
+  renderPlaceFilterTabs();
+  const filtered = _placeFilter === 'all' ? _places : _places.filter(p => p.category === _placeFilter);
+  if (!filtered.length) {
+    const msg = _places.length ? 'В этой категории пока нет мест.' : 'Организатор добавит адреса отелей, ресторанов и достопримечательностей.';
+    el('places-list').innerHTML = '<div class="empty-wrap"><div class="empty-illustration">📍</div><div class="empty-title">Нет мест</div><div class="empty-sub">'+msg+'</div></div>';
     return;
   }
-  const catLabels = { hotel:'🏨 Отель', restaurant:'🍽 Ресторан', sight:'🏛 Достопримечательность', transport:'🚕 Транспорт', other:'📦 Другое' };
-  el('places-list').innerHTML = _places.map(p => {
-    const mapBtn = p.map_url ? '<a class="place-map-btn" href="'+esc(p.map_url)+'" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg> Открыть на карте</a>' : '';
-    return '<div class="card place-card"><div class="place-name">'+esc(p.name)+'</div>'+(p.address?'<div class="place-addr">'+esc(p.address)+'</div>':'')+(p.description?'<div class="place-desc">'+esc(p.description)+'</div>':'')+'<span class="place-cat">'+(catLabels[p.category]||p.category)+'</span>'+mapBtn+'</div>';
+  el('places-list').innerHTML = filtered.map(p => {
+    const cat = PLACE_CATS[p.category] || PLACE_CATS.other;
+    const photo = p.photo_url ? '<img class="place-card-photo" src="'+esc(p.photo_url)+'" alt="" loading="lazy" onerror="this.style.display=\'none\'">' : '';
+    const addr = p.address ? '<div class="place-addr"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg> '+esc(p.address)+'</div>' : '';
+    const desc = p.description ? '<div class="place-desc" id="pd-'+p.id+'">'+esc(p.description)+'</div><button class="place-desc-toggle" data-id="'+p.id+'" style="display:none" onclick="togglePlaceDesc(this)">Ещё</button>' : '';
+    const hasRoute = (p.lat && p.lng) || p.address;
+    const routeBtn = hasRoute ? '<button class="place-route-btn" onclick="event.stopPropagation();openRoutePicker(\''+p.id+'\')"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg> Маршрут</button>' : '';
+    return '<div class="card place-card">'+photo+'<div class="place-card-body"><div class="place-name">'+esc(p.name)+'</div>'+addr+desc+'<div class="place-footer"><span class="place-cat">'+cat.emoji+' '+cat.label+'</span>'+routeBtn+'</div></div></div>';
   }).join('');
+  requestAnimationFrame(() => {
+    filtered.forEach(p => {
+      if (!p.description) return;
+      const d = document.getElementById('pd-'+p.id);
+      if (d && d.scrollHeight > d.clientHeight + 2) d.nextElementSibling.style.display = '';
+    });
+  });
+}
+
+function renderPlaceFilterTabs() {
+  if (!_places.length) { el('place-filter-tabs').innerHTML = ''; return; }
+  const cats = [
+    { key:'all', label:'Все' },
+    { key:'housing', label:'🏨 Жилье' },
+    { key:'food', label:'🍽 Еда' },
+    { key:'sight', label:'🏛 Достопримечательности' },
+    { key:'transport', label:'🚕 Транспорт' }
+  ];
+  const active = cats.filter(c => c.key === 'all' || _places.some(p => p.category === c.key));
+  el('place-filter-tabs').innerHTML = active.map(c =>
+    '<button class="place-filter-tab'+(c.key===_placeFilter?' on':'')+'" onclick="filterPlaces(\''+c.key+'\')">'+c.label+'</button>'
+  ).join('');
+}
+
+function filterPlaces(cat) {
+  _placeFilter = cat;
+  renderPlaces();
+}
+
+function togglePlaceDesc(btn) {
+  const d = document.getElementById('pd-'+btn.dataset.id);
+  if (!d) return;
+  const expanded = d.classList.toggle('expanded');
+  btn.textContent = expanded ? 'Свернуть' : 'Ещё';
+}
+
+function openRoutePicker(placeId) {
+  const p = _places.find(x => x.id === placeId);
+  if (!p) return;
+  const hasCoords = p.lat && p.lng;
+  const addr = encodeURIComponent(p.address || p.name);
+  const coord = hasCoords ? p.lat+','+p.lng : null;
+  const options = [];
+  options.push({ label:'Google Maps', icon:'🗺', url: hasCoords ? 'https://www.google.com/maps/dir/?api=1&destination='+coord : 'https://www.google.com/maps/dir/?api=1&destination='+addr });
+  options.push({ label:'Яндекс Карты', icon:'🟡', url: hasCoords ? 'https://yandex.ru/maps/?rtext=~'+coord+'&rtt=auto' : 'https://yandex.ru/maps/?rtext=~'+addr+'&rtt=auto' });
+  options.push({ label:'2ГИС', icon:'🟢', url: hasCoords ? 'https://2gis.ru/routeSearch/rsType/car/to/'+p.lng+','+p.lat : 'https://2gis.ru/search/'+addr });
+  el('route-picker-addr').textContent = p.address || p.name;
+  el('route-picker-options').innerHTML = options.map(o =>
+    '<a href="'+esc(o.url)+'" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid var(--border);text-decoration:none;color:var(--text)"><span style="font-size:24px">'+o.icon+'</span><span style="font-size:15px;font-weight:600">'+esc(o.label)+'</span><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--sub)" stroke-width="2" style="margin-left:auto"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>'
+  ).join('');
+  openSheet('ov-route-picker');
 }
 
 /* ═══════════════════════════════════════════
