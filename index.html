@@ -526,6 +526,10 @@ body{margin:0;padding:0;height:100%;font-family:'Manrope',system-ui,sans-serif;f
 
         <!-- SUB-TAB 2: PHOTOS -->
         <div id="exp-pane-photos" style="display:none">
+          <div style="margin-bottom:10px">
+            <button class="btn btn-sm" style="background:var(--accent);color:#fff;border:none;font-size:13px;padding:8px 14px" onclick="el('standalone-photo-input').click()">📷 Загрузить фото</button>
+            <input type="file" id="standalone-photo-input" accept="image/*" capture="environment" style="display:none" onchange="uploadStandalonePhoto(this)">
+          </div>
           <div id="photos-list"></div>
         </div>
 
@@ -1346,7 +1350,7 @@ function renderExpensesList() {
     return;
   }
 
-  const catIcons = { food:'🍽', transport:'🚕', housing:'🏨', entertainment:'🎭', other:'📦' };
+  const catIcons = { housing:'🏨', entertainment:'🎭', groceries:'🛒', medical:'💊', insurance:'🛡', rental:'🚗', restaurants:'🍽', shopping:'🛍', transport:'🚕', other:'📦' };
   const today = new Date(); today.setHours(0,0,0,0);
   const yesterday = new Date(today); yesterday.setDate(yesterday.getDate()-1);
   const dayLabels = ['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
@@ -1567,7 +1571,7 @@ function confirmSettle(fromId, toId, amount) {
   showConfirm('Подтвердить получение?', esc(name)+' вернул '+fmtMoney(amount)+'?', async () => {
     closeSheet('ov-debts');
     await doSettle(fromId, toId, amount);
-  });
+  }, 'Подтвердить', 'var(--green)');
 }
 
 async function doSettle(fromId, toId, amount) {
@@ -1843,6 +1847,46 @@ function uploadPhoto() {
   });
 }
 
+async function uploadStandalonePhoto(input) {
+  if (!input.files || !input.files[0]) return;
+  const file = input.files[0];
+  const reader = new FileReader();
+  reader.onload = () => {
+    const img = new Image();
+    img.onload = async () => {
+      const MAX = 800;
+      let w = img.width, h = img.height;
+      if (w > MAX) { h = Math.round(h * MAX / w); w = MAX; }
+      const cvs = document.createElement('canvas');
+      cvs.width = w; cvs.height = h;
+      cvs.getContext('2d').drawImage(img, 0, 0, w, h);
+      const dataUrl = cvs.toDataURL('image/jpeg', 0.7);
+      const row = {
+        trip_id: S.tripId,
+        description: 'Фото',
+        category: 'other',
+        amount: 0,
+        paid_by: S.user.tg_id,
+        split_type: 'equal',
+        op_type: 'expense',
+        currency: 'RUB',
+        expense_date: new Date().toISOString().slice(0,10),
+        photo_url: dataUrl
+      };
+      const res = await sbPost('expenses', row);
+      if (res) {
+        await loadExpenses();
+        renderExpensesList();
+        renderPhotos();
+        switchExpTab(2);
+      }
+    };
+    img.src = reader.result;
+  };
+  reader.readAsDataURL(file);
+  input.value = '';
+}
+
 /* ═══════════════════════════════════════════
    SUBMIT EXPENSE
 ═══════════════════════════════════════════ */
@@ -2076,10 +2120,11 @@ async function duplicateExpense() {
   }
 }
 
-function showConfirm(title, msg, onOk) {
+function showConfirm(title, msg, onOk, okLabel, okColor) {
   const ov = document.createElement('div');
   ov.className = 'confirm-overlay';
-  ov.innerHTML = '<div class="confirm-box"><div class="confirm-title">'+title+'</div><div class="confirm-msg">'+msg+'</div><div class="confirm-btns"><button class="btn btn-ghost" id="confirm-cancel">Отмена</button><button class="btn" style="background:var(--red);color:#fff" id="confirm-ok">Удалить</button></div></div>';
+  const btnStyle = 'background:'+(okColor||'var(--red)')+';color:#fff';
+  ov.innerHTML = '<div class="confirm-box"><div class="confirm-title">'+title+'</div><div class="confirm-msg">'+msg+'</div><div class="confirm-btns"><button class="btn btn-ghost" id="confirm-cancel">Отмена</button><button class="btn" style="'+btnStyle+'" id="confirm-ok">'+(okLabel||'Удалить')+'</button></div></div>';
   document.body.appendChild(ov);
   ov.querySelector('#confirm-cancel').onclick = () => ov.remove();
   ov.querySelector('#confirm-ok').onclick = () => { ov.remove(); onOk(); };
