@@ -703,6 +703,16 @@ body{margin:0;padding:0;height:100%;font-family:'Manrope',system-ui,sans-serif;f
       <div class="profile-ava" id="prof-ava"></div>
       <div class="profile-name" id="prof-name"></div>
       <div class="profile-handle" id="prof-handle"></div>
+      <div id="prof-role" style="display:none;text-align:center;margin:-12px 0 16px">
+        <span style="background:var(--accent);color:#fff;font-size:11px;font-weight:700;padding:3px 10px;border-radius:12px">Админ</span>
+      </div>
+
+      <div id="prof-qr-section" style="display:none">
+        <div style="text-align:center;margin-bottom:6px;font-size:13px;font-weight:700;color:var(--sub)">QR для присоединения</div>
+        <div style="text-align:center;margin-bottom:16px">
+          <img id="prof-qr-img" width="180" height="180" style="border-radius:var(--r);border:1px solid var(--border)" alt="QR">
+        </div>
+      </div>
 
       <div class="profile-row">
         <div class="profile-row-label">Тема</div>
@@ -1240,6 +1250,9 @@ async function bootApp() {
     loadExpenses()
   ]);
 
+  // Update UI with loaded member roles
+  updateUserUI();
+
   // Sync queued operations if online
   if (navigator.onLine) syncQueue();
 
@@ -1319,9 +1332,22 @@ function updateUserUI() {
   }
   el('prof-name').textContent = u.name || 'Участник';
   el('prof-handle').textContent = u.username ? '@'+u.username : '';
+
+  const me = _members.find(m => m.tg_id === u.tgId);
+  const isAdmin = me && me.role === 'admin';
+  el('prof-role').style.display = isAdmin ? '' : 'none';
+  el('prof-qr-section').style.display = isAdmin ? '' : 'none';
+  if (isAdmin && S.tripId) renderQR();
 }
 
 function showProfile() { openSheet('ov-profile'); }
+
+function renderQR() {
+  const url = location.origin + '?join=' + S.tripId;
+  const img = el('prof-qr-img');
+  if (!img) return;
+  img.src = 'https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=' + encodeURIComponent(url);
+}
 
 /* ═══════════════════════════════════════════
    LOAD DATA
