@@ -432,9 +432,10 @@ body{margin:0;padding:0;height:100%;font-family:'Manrope',system-ui,sans-serif;f
     </button>
 
     <div id="wl-code-block" style="display:none;margin-top:16px;text-align:center">
-      <p style="font-size:13px;color:var(--sub);margin-bottom:8px">Нажми «Старт» в боте, затем вернись сюда</p>
-      <div style="display:flex;gap:8px;align-items:center;justify-content:center">
+      <p style="font-size:13px;color:var(--sub);margin-bottom:12px">Нажми «Старт» в боте Telegram</p>
+      <div style="display:flex;flex-direction:column;gap:8px;align-items:center">
         <button class="btn btn-ghost btn-sm" onclick="openTg()" style="width:auto">Открыть Telegram</button>
+        <button class="btn btn-accent btn-sm" id="wl-back-btn" onclick="window.focus()" style="width:auto;display:none">Вернуться в приложение</button>
       </div>
       <p id="wl-code-status" style="font-size:12px;color:var(--ph);margin-top:10px">Ожидаем подтверждение...</p>
     </div>
@@ -1145,7 +1146,9 @@ async function startTgAuth() {
 
 function openTg() {
   if (_tgCode) {
-    location.href = 'https://t.me/' + BOT_NAME + '?start=' + _tgCode;
+    const backBtn = el('wl-back-btn');
+    if (backBtn) backBtn.style.display = '';
+    window.open('https://t.me/' + BOT_NAME + '?start=' + _tgCode, '_blank');
   }
 }
 
@@ -1217,11 +1220,72 @@ function showNoTripScreen() {
     scr.style.cssText = 'display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:32px;text-align:center';
     scr.innerHTML = '<div style="font-size:48px;margin-bottom:16px">🎒</div>'
       + '<div style="font-size:20px;font-weight:800;color:var(--text);margin-bottom:8px">Нет активной поездки</div>'
-      + '<div style="font-size:14px;color:var(--sub);line-height:1.5;max-width:280px;margin-bottom:24px">Отсканируй QR-код организатора, чтобы присоединиться к поездке</div>'
+      + '<div style="font-size:14px;color:var(--sub);line-height:1.5;max-width:280px;margin-bottom:24px">Попроси организатора показать QR-код и отсканируй его</div>'
+      + '<button class="btn btn-accent" onclick="openQRScanner()" style="width:auto;margin-bottom:12px"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#fff" stroke-width="2" style="margin-right:6px"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>Сканировать QR-код</button>'
       + '<button class="btn btn-ghost btn-sm" onclick="logout()" style="width:auto">Выйти</button>';
     document.body.appendChild(scr);
   }
   scr.style.display = 'flex';
+}
+
+function openQRScanner() {
+  if (el('qr-scanner-overlay')) return;
+
+  const ov = document.createElement('div');
+  ov.id = 'qr-scanner-overlay';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:9999;background:#000;display:flex;flex-direction:column';
+  ov.innerHTML = '<div style="padding:16px;display:flex;align-items:center;gap:12px;color:#fff"><button onclick="closeQRScanner()" style="background:none;border:none;color:#fff;font-size:24px;cursor:pointer;padding:4px">&#10005;</button><span style="font-size:16px;font-weight:700">Сканирование QR-кода</span></div>'
+    + '<div style="flex:1;position:relative;overflow:hidden"><video id="qr-video" autoplay playsinline style="width:100%;height:100%;object-fit:cover"></video>'
+    + '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center"><div style="width:220px;height:220px;border:3px solid var(--accent);border-radius:16px"></div></div></div>'
+    + '<div style="padding:20px;text-align:center;color:rgba(255,255,255,.7);font-size:13px">Наведи камеру на QR-код организатора</div>';
+  document.body.appendChild(ov);
+
+  startQRScan();
+}
+
+async function startQRScan() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    const video = el('qr-video');
+    if (!video) { stream.getTracks().forEach(t => t.stop()); return; }
+    video.srcObject = stream;
+
+    if ('BarcodeDetector' in window) {
+      const detector = new BarcodeDetector({ formats: ['qr_code'] });
+      const scanLoop = async () => {
+        if (!el('qr-scanner-overlay')) { stream.getTracks().forEach(t => t.stop()); return; }
+        try {
+          const barcodes = await detector.detect(video);
+          if (barcodes.length > 0) {
+            const url = barcodes[0].rawValue;
+            const match = url.match(/[?&]join=([a-f0-9-]+)/i);
+            if (match) {
+              stream.getTracks().forEach(t => t.stop());
+              closeQRScanner();
+              joinExistingUserToTrip(match[1]);
+              return;
+            }
+          }
+        } catch {}
+        requestAnimationFrame(scanLoop);
+      };
+      video.onloadedmetadata = () => scanLoop();
+    } else {
+      const hint = el('qr-scanner-overlay')?.querySelector('div:last-child');
+      if (hint) hint.textContent = 'BarcodeDetector не поддерживается. Отсканируй QR камерой телефона.';
+    }
+  } catch {
+    closeQRScanner();
+    toast('Нет доступа к камере');
+  }
+}
+
+function closeQRScanner() {
+  const ov = el('qr-scanner-overlay');
+  if (!ov) return;
+  const video = ov.querySelector('video');
+  if (video && video.srcObject) video.srcObject.getTracks().forEach(t => t.stop());
+  ov.remove();
 }
 
 function logout() {
