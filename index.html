@@ -308,6 +308,13 @@ body{margin:0;padding:0;height:100%;font-family:'Manrope',system-ui,sans-serif;f
 .bal-my-title{font-size:15px;font-weight:700}
 .bal-my-sub{font-size:12px;color:var(--sub);line-height:1.4;margin-top:2px}
 .bal-my-arrow{font-size:18px;color:var(--ph);flex-shrink:0}
+.bal-section-hdr{font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.3px;margin:16px 0 8px;padding-left:2px}
+.bal-debt-row{display:flex;align-items:center;gap:10px;padding:12px 14px;background:var(--surface);border-radius:var(--r-sm);margin-bottom:6px;box-shadow:0 1px 2px rgba(0,0,0,.03)}
+.bal-debt-row .debt-ava{width:32px;height:32px;font-size:13px}
+.bal-debt-row .debt-name{font-size:14px;font-weight:600;flex:1}
+.bal-debt-row .debt-amt{font-size:15px;font-weight:800;flex-shrink:0}
+.bal-zero{text-align:center;padding:24px 16px;background:var(--surface);border-radius:var(--r);margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.bal-all-btn{background:none;border:none;color:var(--blue);font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;padding:8px 0;display:block;margin:12px auto 0}
 
 .exp-row{display:flex;gap:10px;margin-top:12px}
 .exp-row>div:first-child{flex:1}
@@ -327,7 +334,9 @@ body{margin:0;padding:0;height:100%;font-family:'Manrope',system-ui,sans-serif;f
 .profile-ava{width:64px;height:64px;border-radius:50%;background:var(--accent-bg);margin:0 auto 12px;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:800;color:var(--accent);overflow:hidden}
 .profile-ava img{width:100%;height:100%;object-fit:cover;border-radius:50%}
 .profile-name{font-size:18px;font-weight:800;text-align:center;margin-bottom:4px}
-.profile-handle{font-size:13px;color:var(--sub);text-align:center;margin-bottom:20px}
+.profile-handle{font-size:13px;color:var(--sub);text-align:center;margin-bottom:4px}
+.profile-handle a{color:var(--blue);text-decoration:none}
+.profile-phone{font-size:13px;color:var(--sub);text-align:center;margin-bottom:20px}
 .profile-row{display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid var(--border)}
 .profile-row-label{font-size:14px;font-weight:600}
 .theme-select{display:flex;gap:4px}
@@ -530,7 +539,7 @@ body{margin:0;padding:0;height:100%;font-family:'Manrope',system-ui,sans-serif;f
         <!-- SUB-TAB 2: PHOTOS -->
         <div id="exp-pane-photos" style="display:none">
           <div id="photos-list"></div>
-          <input type="file" id="standalone-photo-input" accept="image/*" capture="environment" style="display:none" onchange="uploadStandalonePhoto(this)">
+          <input type="file" id="standalone-photo-input" accept="image/*" style="display:none" onchange="uploadStandalonePhoto(this)">
         </div>
 
       </div>
@@ -584,7 +593,7 @@ body{margin:0;padding:0;height:100%;font-family:'Manrope',system-ui,sans-serif;f
         <input class="inp" id="exp-inp-desc" placeholder="Например, напитки">
         <select class="inp" id="exp-inp-cat" style="width:auto;min-width:90px;padding:12px 10px;font-size:14px"></select>
         <div class="photo-btn" id="exp-photo-btn" onclick="el('exp-photo-input').click()">📷</div>
-        <input type="file" id="exp-photo-input" accept="image/*" capture="environment" style="display:none" onchange="onPhotoSelected(this)">
+        <input type="file" id="exp-photo-input" accept="image/*" style="display:none" onchange="onPhotoSelected(this)">
       </div>
       <div id="exp-photo-preview" style="display:none;margin-bottom:10px;position:relative">
         <img id="exp-photo-img" style="max-height:100px;border-radius:8px;border:1px solid var(--border)">
@@ -663,9 +672,9 @@ body{margin:0;padding:0;height:100%;font-family:'Manrope',system-ui,sans-serif;f
     </div>
     <div id="exp-det-splits"></div>
     <div class="exp-detail-actions" id="exp-det-actions">
-      <button class="btn btn-ghost" onclick="editExpense()">Изменить</button>
+      <button class="btn btn-ghost" id="exp-det-edit" onclick="editExpense()">Изменить</button>
       <button class="btn btn-ghost" onclick="duplicateExpense()">Копия</button>
-      <button class="btn btn-ghost" style="color:var(--red)" onclick="deleteExpense()">Удалить</button>
+      <button class="btn btn-ghost" id="exp-det-delete" style="color:var(--red)" onclick="deleteExpense()">Удалить</button>
     </div>
     <button class="btn btn-ghost" style="margin-top:8px" onclick="closeSheet('ov-exp-detail')">Закрыть</button>
   </div>
@@ -693,6 +702,7 @@ body{margin:0;padding:0;height:100%;font-family:'Manrope',system-ui,sans-serif;f
       <div class="profile-ava" id="prof-ava"></div>
       <div class="profile-name" id="prof-name"></div>
       <div class="profile-handle" id="prof-handle"></div>
+      <div class="profile-phone" id="prof-phone"></div>
       <div id="prof-role" style="display:none;text-align:center;margin:-12px 0 16px">
         <span style="background:var(--accent);color:#fff;font-size:11px;font-weight:700;padding:3px 10px;border-radius:12px">Админ</span>
       </div>
@@ -1208,20 +1218,43 @@ async function joinExistingUserToTrip(tripId) {
   bootApp();
 }
 
-function showNoTripScreen() {
+async function showNoTripScreen() {
   el('app-wrap').style.display = 'none';
   let scr = el('no-trip-screen');
   if (!scr) {
     scr = document.createElement('div');
     scr.id = 'no-trip-screen';
     scr.style.cssText = 'display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:32px;text-align:center';
-    scr.innerHTML = '<div style="font-size:48px;margin-bottom:16px">🎒</div>'
+    document.body.appendChild(scr);
+  }
+
+  let adminTrips = [];
+  try {
+    const myMemberships = await sbGet('members', 'tg_id=eq.'+S.user.tgId+'&role=eq.admin&select=trip_id');
+    if (myMemberships && myMemberships.length) {
+      const tripIds = myMemberships.map(m => m.trip_id);
+      const trips = await sbGet('trips', 'id=in.('+tripIds.join(',')+')&order=start_date.desc');
+      if (trips) adminTrips = trips;
+    }
+  } catch {}
+
+  if (adminTrips.length) {
+    scr.innerHTML = '<div style="font-size:48px;margin-bottom:16px">&#127891;</div>'
+      + '<div style="font-size:20px;font-weight:800;color:var(--text);margin-bottom:20px">Мои поездки</div>'
+      + adminTrips.map(t => {
+        const dates = t.start_date ? (t.start_date + (t.end_date ? ' — ' + t.end_date : '')) : '';
+        return '<button class="btn btn-accent" onclick="joinExistingUserToTrip(\''+t.id+'\')" style="width:100%;max-width:320px;margin-bottom:8px">' + esc(t.name || 'Поездка') + (dates ? '<br><span style="font-size:12px;font-weight:400;opacity:.8">' + esc(dates) + '</span>' : '') + '</button>';
+      }).join('')
+      + '<div style="margin-top:16px"><button class="btn btn-ghost btn-sm" onclick="openQRScanner()" style="width:auto;margin-bottom:8px">Сканировать QR-код</button></div>'
+      + '<button class="btn btn-ghost btn-sm" onclick="logout()" style="width:auto">Выйти</button>';
+  } else {
+    scr.innerHTML = '<div style="font-size:48px;margin-bottom:16px">&#127890;</div>'
       + '<div style="font-size:20px;font-weight:800;color:var(--text);margin-bottom:8px">Нет активной поездки</div>'
       + '<div style="font-size:14px;color:var(--sub);line-height:1.5;max-width:280px;margin-bottom:24px">Попроси организатора показать QR-код и отсканируй его</div>'
       + '<button class="btn btn-accent" onclick="openQRScanner()" style="width:auto;margin-bottom:12px"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#fff" stroke-width="2" style="margin-right:6px"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>Сканировать QR-код</button>'
       + '<button class="btn btn-ghost btn-sm" onclick="logout()" style="width:auto">Выйти</button>';
-    document.body.appendChild(scr);
   }
+
   scr.style.display = 'flex';
 }
 
@@ -1457,7 +1490,15 @@ function updateUserUI() {
     el('prof-ava').textContent = (u.name||'?')[0].toUpperCase();
   }
   el('prof-name').textContent = u.name || 'Участник';
-  el('prof-handle').textContent = u.username ? '@'+u.username : '';
+  if (u.username) {
+    el('prof-handle').innerHTML = '<a href="https://t.me/'+esc(u.username)+'" target="_blank">@'+esc(u.username)+'</a>';
+  } else {
+    el('prof-handle').textContent = '';
+  }
+  const savedPhone = localStorage.getItem('ot_phone') || '';
+  el('prof-phone').innerHTML = savedPhone
+    ? '<a href="tel:'+esc(savedPhone)+'" style="color:var(--blue);text-decoration:none">'+esc(savedPhone)+'</a> <span style="cursor:pointer;opacity:.5" onclick="editPhone()">&#9998;</span>'
+    : '<span style="cursor:pointer;color:var(--blue)" onclick="editPhone()">+ Добавить телефон</span>';
 
   const me = _members.find(m => m.tg_id === u.tgId);
   const isAdmin = me && me.role === 'admin';
@@ -1467,6 +1508,16 @@ function updateUserUI() {
 }
 
 function showProfile() { openSheet('ov-profile'); }
+
+function editPhone() {
+  const cur = localStorage.getItem('ot_phone') || '';
+  const val = prompt('Номер телефона:', cur);
+  if (val === null) return;
+  const phone = val.trim();
+  if (phone) localStorage.setItem('ot_phone', phone);
+  else localStorage.removeItem('ot_phone');
+  updateUserUI();
+}
 
 function renderQR() {
   const url = location.origin + '?join=' + S.tripId;
@@ -1759,23 +1810,37 @@ function avaInitial(name) { return (name||'?').charAt(0).toUpperCase(); }
 
 function renderBalance() {
   const balances = calcBalances();
-  const myBal = balances[S.user?.tgId] || 0;
   const settles = calcSettlements(balances);
-
-  // My summary card
-  const mySettles = settles.filter(s => s.from === S.user?.tgId || s.to === S.user?.tgId);
   const owedToMe = settles.filter(s => s.to === S.user?.tgId);
   const iOwe = settles.filter(s => s.from === S.user?.tgId);
-  let myCardHtml = '';
 
-  if (myBal >= 0 && owedToMe.length) {
-    const names = owedToMe.map(s => memberName(s.from)).join(', ');
-    myCardHtml = '<div class="bal-my-card" onclick="showDebts()"><div class="bal-my-icon" style="background:var(--green-bg)">🤑</div><div class="bal-my-text"><div class="bal-my-title" style="color:var(--green)">тебе должны '+fmtMoney(Math.abs(Math.round(myBal)))+'</div><div class="bal-my-sub">'+esc(names)+' должны вернуть тебе деньги</div></div><div class="bal-my-arrow">›</div></div>';
-  } else if (myBal < 0 && iOwe.length) {
-    const names = iOwe.map(s => memberName(s.to)).join(', ');
-    myCardHtml = '<div class="bal-my-card" onclick="showDebts()"><div class="bal-my-icon" style="background:var(--red-bg)">💸</div><div class="bal-my-text"><div class="bal-my-title" style="color:var(--red)">ты должен '+fmtMoney(Math.abs(Math.round(myBal)))+'</div><div class="bal-my-sub">Вернуть деньги: '+esc(names)+'</div></div><div class="bal-my-arrow">›</div></div>';
+  let myHtml = '';
+
+  if (owedToMe.length) {
+    myHtml += '<div class="bal-section-hdr" style="color:var(--green)">тебе должны</div>';
+    myHtml += owedToMe.map(s => {
+      const n = memberName(s.from); const c = avaColor(s.from);
+      return '<div class="bal-debt-row"><div class="debt-ava" style="background:'+c+'">'+avaInitial(n)+'</div><div class="debt-name">'+esc(n)+'</div><div class="debt-amt" style="color:var(--green)">'+fmtMoney(s.amount)+'</div></div>';
+    }).join('');
   }
-  el('bal-my-section').innerHTML = myCardHtml;
+
+  if (iOwe.length) {
+    myHtml += '<div class="bal-section-hdr" style="color:var(--red);'+(owedToMe.length?'margin-top:16px':'')+'">ты должен</div>';
+    myHtml += iOwe.map(s => {
+      const n = memberName(s.to); const c = avaColor(s.to);
+      return '<div class="bal-debt-row"><div class="debt-ava" style="background:'+c+'">'+avaInitial(n)+'</div><div class="debt-name">'+esc(n)+'</div><div class="debt-amt" style="color:var(--red)">'+fmtMoney(s.amount)+'</div></div>';
+    }).join('');
+  }
+
+  if (!owedToMe.length && !iOwe.length) {
+    myHtml = '<div class="bal-zero"><div style="font-size:32px;margin-bottom:8px">&#9996;&#65039;</div><div style="font-size:15px;font-weight:700">ты никому не должен</div><div style="font-size:13px;color:var(--sub);margin-top:4px">Все расчёты в порядке</div></div>';
+  }
+
+  if (settles.length) {
+    myHtml += '<button class="bal-all-btn" onclick="showDebts()">Посмотреть все предложения возмещения</button>';
+  }
+
+  el('bal-my-section').innerHTML = myHtml;
 
   // Sort buttons
   el('bal-sort').innerHTML = [['name','По имени'],['low','Минимум'],['high','Максимум']].map(([k,l]) =>
@@ -1798,45 +1863,39 @@ function renderBalance() {
 function showDebts() {
   const balances = calcBalances();
   const settles = calcSettlements(balances);
-  const myBal = balances[S.user?.tgId] || 0;
-  const owedToMe = settles.filter(s => s.to === S.user?.tgId);
-  const iOwe = settles.filter(s => s.from === S.user?.tgId);
+  const total = settles.reduce((s,d) => s + d.amount, 0);
 
-  let headerHtml = '';
-  if (myBal >= 0) {
-    headerHtml = '<div class="debts-label">тебе должны</div><div class="debts-total green">'+fmtMoney(Math.abs(Math.round(myBal)))+'</div>';
-  } else {
-    headerHtml = '<div class="debts-label">ты должен</div><div class="debts-total red">'+fmtMoney(Math.abs(Math.round(myBal)))+'</div>';
-  }
-  el('debts-header').innerHTML = headerHtml;
+  el('debts-header').innerHTML = '<div class="debts-label">Все предложения возмещения</div><div class="debts-total" style="color:var(--text)">'+fmtMoney(total)+'</div>';
+
+  const mine = settles.filter(s => s.from === S.user?.tgId || s.to === S.user?.tgId);
+  const others = settles.filter(s => s.from !== S.user?.tgId && s.to !== S.user?.tgId);
 
   let listHtml = '';
 
-  if (owedToMe.length) {
-    listHtml += owedToMe.map(s => {
-      const name = memberName(s.from);
-      const color = avaColor(s.from);
-      return '<div class="card debt-card"><div class="debt-card-top"><div class="debt-ava" style="background:'+color+'">'+avaInitial(name)+'</div><div class="debt-info"><div class="debt-name">'+esc(name)+'</div><div class="debt-dir">должен тебе</div></div><div class="debt-amount" style="color:var(--green)">'+fmtMoney(s.amount)+'</div></div><div class="debt-actions"><button class="btn" style="background:var(--blue);color:#fff" onclick="confirmSettle(\''+s.from+'\',\''+s.to+'\','+s.amount+')">Получено</button></div></div>';
-    }).join('');
+  function debtCard(s) {
+    const fromN = memberName(s.from);
+    const toN = memberName(s.to);
+    const isMyDebt = s.from === S.user?.tgId;
+    const isToMe = s.to === S.user?.tgId;
+    const color = avaColor(s.from);
+    let dir, amtColor;
+    if (isToMe) { dir = esc(fromN) + ' должен тебе'; amtColor = 'var(--green)'; }
+    else if (isMyDebt) { dir = 'ты должен ' + esc(toN); amtColor = 'var(--red)'; }
+    else { dir = esc(fromN) + ' &rarr; ' + esc(toN); amtColor = 'var(--text)'; }
+    return '<div class="card debt-card"><div class="debt-card-top"><div class="debt-ava" style="background:'+color+'">'+avaInitial(fromN)+'</div><div class="debt-info"><div class="debt-name">'+dir+'</div><div class="debt-dir">'+fmtMoney(s.amount)+'</div></div><div class="debt-amount" style="color:'+amtColor+'">'+fmtMoney(s.amount)+'</div></div><div class="debt-actions"><button class="btn" style="background:var(--green);color:#fff" onclick="confirmSettle(\''+s.from+'\',\''+s.to+'\','+s.amount+')">Оплачено</button></div></div>';
   }
 
-  if (iOwe.length) {
-    listHtml += iOwe.map(s => {
-      const name = memberName(s.to);
-      const color = avaColor(s.to);
-      return '<div class="card debt-card"><div class="debt-card-top"><div class="debt-ava" style="background:'+color+'">'+avaInitial(name)+'</div><div class="debt-info"><div class="debt-name">'+esc(name)+'</div><div class="debt-dir">ты должен</div></div><div class="debt-amount" style="color:var(--red)">'+fmtMoney(s.amount)+'</div></div></div>';
-    }).join('');
+  if (mine.length) {
+    listHtml += '<div class="exp-section-title">Мои расчёты</div>';
+    listHtml += mine.map(debtCard).join('');
   }
-
-  // All settlements (not involving me)
-  const others = settles.filter(s => s.from !== S.user?.tgId && s.to !== S.user?.tgId);
   if (others.length) {
-    listHtml += '<div class="exp-section-title" style="margin-top:16px">Все расчёты</div>';
-    listHtml += others.map(s => {
-      const fromN = memberName(s.from);
-      const toN = memberName(s.to);
-      return '<div class="card debt-card"><div class="debt-card-top"><div class="debt-ava" style="background:'+avaColor(s.from)+'">'+avaInitial(fromN)+'</div><div class="debt-info"><div class="debt-name">'+esc(fromN)+' &rarr; '+esc(toN)+'</div><div class="debt-dir">'+fmtMoney(s.amount)+'</div></div></div></div>';
-    }).join('');
+    listHtml += '<div class="exp-section-title" style="margin-top:16px">Остальные расчёты</div>';
+    listHtml += others.map(debtCard).join('');
+  }
+
+  if (!settles.length) {
+    listHtml = '<div style="text-align:center;padding:24px;color:var(--sub)">Все расчёты завершены</div>';
   }
 
   el('debts-list').innerHTML = listHtml;
@@ -1852,10 +1911,10 @@ function sortBalance(key) {
    RENDER: PHOTOS
 ═══════════════════════════════════════════ */
 function renderPhotos() {
-  const uploadBtn = '<div style="text-align:center;margin-top:16px"><span style="font-size:14px;color:var(--sub);cursor:pointer" onclick="el(\'standalone-photo-input\').click()">📷 Загрузить</span></div>';
+  const uploadBtn = '<div style="text-align:center;margin-top:16px"><button class="btn btn-ghost btn-sm" onclick="el(\'standalone-photo-input\').click()" style="width:auto;margin:0 auto;gap:6px">&#128247; Загрузить фото</button></div>';
   const withPhotos = _expenses.filter(e => e.photo_url);
   if (!withPhotos.length) {
-    el('photos-list').innerHTML = '<div class="empty-wrap"><div class="empty-illustration">📷</div><div class="empty-title">Фото нет</div><div class="empty-sub">Добавь фото чека при создании расхода.</div>' + uploadBtn + '</div>';
+    el('photos-list').innerHTML = '<div class="empty-wrap"><div class="empty-illustration">&#128247;</div><div class="empty-title">Фото нет</div><div class="empty-sub">Сфотографируй или загрузи из галереи.</div>' + uploadBtn + '</div>';
     return;
   }
   el('photos-list').innerHTML = '<div class="photos-grid">' + withPhotos.map(e =>
@@ -1919,11 +1978,13 @@ function calcSettlements(balances) {
 }
 
 function confirmSettle(fromId, toId, amount) {
-  const name = memberName(fromId);
-  showConfirm('Подтвердить получение?', esc(name)+' вернул '+fmtMoney(amount)+'?', async () => {
+  const fromN = memberName(fromId);
+  const toN = memberName(toId);
+  const msg = esc(fromN) + ' &rarr; ' + esc(toN) + ': ' + fmtMoney(amount);
+  showConfirm('Отметить как оплачено?', msg, async () => {
     closeSheet('ov-debts');
     await doSettle(fromId, toId, amount);
-  }, 'Подтвердить', 'var(--green)');
+  }, 'Оплачено', 'var(--green)');
 }
 
 async function doSettle(fromId, toId, amount) {
@@ -2429,6 +2490,10 @@ function showExpDetail(expId) {
   } else {
     el('exp-det-photo').style.display = 'none';
   }
+
+  const isOwn = exp.paid_by === S.user?.tgId || exp.created_by === S.user?.tgId;
+  el('exp-det-edit').style.display = isOwn ? '' : 'none';
+  el('exp-det-delete').style.display = isOwn ? '' : 'none';
 
   openSheet('ov-exp-detail');
 }
