@@ -126,6 +126,7 @@ body{margin:0;padding:0;height:100%;font-family:'Manrope',system-ui,sans-serif;f
 .overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;display:none;align-items:flex-end;-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px)}
 .overlay.show{display:flex}
 .sheet{width:100%;max-height:90vh;background:var(--surface);border-radius:20px 20px 0 0;padding:12px 20px 20px;padding-bottom:calc(20px + var(--safe-bot));overflow-y:auto;-webkit-overflow-scrolling:touch;transform:translate3d(0,0,0);transition:transform .3s cubic-bezier(.25,.46,.45,.94);will-change:transform}
+.sheet-full{max-height:95vh;min-height:92vh}
 .sheet.dragging{transition:none}
 @keyframes sheetUp{from{transform:translateY(100%)}}
 .sheet-handle{width:36px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 16px;cursor:grab}
@@ -273,8 +274,10 @@ body{margin:0;padding:0;height:100%;font-family:'Manrope',system-ui,sans-serif;f
 .stepper-val{width:28px;text-align:center;font-size:15px;font-weight:700}
 
 /* ─── FAB BUTTON ─── */
-.fab{position:sticky;bottom:12px;z-index:11;margin:0 auto;display:flex;align-items:center;justify-content:center;gap:8px;padding:14px 28px;border:none;border-radius:28px;background:var(--accent);color:#fff;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;box-shadow:0 4px 16px rgba(232,133,61,.35);transition:transform .1s}
-.fab:active{transform:scale(.95)}
+.fab-wrap{position:fixed;bottom:calc(var(--nav-h) + var(--safe-bot) + 18px);right:20px;z-index:11;display:flex;flex-direction:column;align-items:center;gap:4px}
+.fab{width:56px;height:56px;border:none;border-radius:50%;background:var(--accent);color:#fff;font-size:28px;font-weight:300;cursor:pointer;box-shadow:0 4px 16px rgba(232,133,61,.35);transition:transform .1s;display:flex;align-items:center;justify-content:center;line-height:1}
+.fab:active{transform:scale(.92)}
+.fab-label{font-size:10px;font-weight:600;color:var(--sub);white-space:nowrap}
 
 /* ─── DEBTS OVERLAY ─── */
 .debts-header{text-align:center;padding:20px 0 16px}
@@ -303,6 +306,15 @@ body{margin:0;padding:0;height:100%;font-family:'Manrope',system-ui,sans-serif;f
 .exp-row{display:flex;gap:10px;margin-top:12px}
 .exp-row>div:first-child{flex:1}
 .exp-row .inp-select{width:90px}
+
+/* ─── COMPACT FORM ROWS ─── */
+.form-row{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.form-row .inp{flex:1;padding:12px 14px;font-size:15px}
+.form-row select.inp{flex:0 0 auto;width:auto;min-width:80px;padding:12px 10px;font-size:14px}
+.form-row .photo-btn{width:42px;height:42px;border-radius:var(--r);border:1.5px solid var(--border);background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;flex-shrink:0;position:relative}
+.form-row .photo-btn.has-photo{border-color:var(--accent);background:var(--accent-bg)}
+.split-header{display:flex;align-items:center;justify-content:space-between;margin-top:8px;margin-bottom:6px}
+.split-header .inp-label{margin-bottom:0}
 
 /* ─── PROFILE OVERLAY ─── */
 .profile-section{padding:20px 0}
@@ -498,9 +510,13 @@ body{margin:0;padding:0;height:100%;font-family:'Manrope',system-ui,sans-serif;f
           <div id="photos-list"></div>
         </div>
 
-        <button class="fab" onclick="showAddOperation()">+ Добавить расход</button>
       </div>
     </div>
+  </div>
+
+  <div class="fab-wrap" id="fab-expenses" style="display:none">
+    <button class="fab" onclick="showAddOperation()">+</button>
+    <span class="fab-label">Добавить расход</span>
   </div>
 
   <!-- BOTTOM NAV -->
@@ -533,64 +549,53 @@ body{margin:0;padding:0;height:100%;font-family:'Manrope',system-ui,sans-serif;f
 <!-- ADD EXPENSE SHEET -->
 <!-- ═══════════════════════════════════════════ -->
 <div class="overlay" id="ov-expense">
-  <div class="sheet" id="sh-expense">
+  <div class="sheet sheet-full" id="sh-expense">
     <div class="sheet-handle" id="sh-expense-handle"></div>
-    <div class="sheet-title" id="exp-form-title">Новая операция</div>
-    <div class="sheet-sub" id="exp-form-sub">Добавить расход, доход или перевод</div>
 
-    <div class="chip-row" id="exp-op-types">
+    <div class="chip-row" id="exp-op-types" style="justify-content:center;margin-bottom:14px">
       <button class="chip on" onclick="pickOpType('expense')">💸 Расход</button>
       <button class="chip" onclick="pickOpType('income')">💰 Возврат</button>
       <button class="chip" onclick="pickOpType('transfer')">🔄 Перевод</button>
     </div>
+    <div class="sheet-sub" id="exp-form-sub" style="display:none;text-align:center;margin-top:-8px"></div>
 
     <!-- EXPENSE / INCOME fields -->
     <div id="exp-fields-common">
-      <div class="inp-label">Описание</div>
-      <input class="inp" id="exp-inp-desc" placeholder="Ужин в ресторане">
-
-      <div class="inp-label" style="margin-top:12px">Категория</div>
-      <div class="chip-row" id="exp-cats"></div>
-
-      <div class="inp-label" style="margin-top:12px">Фото чека</div>
-      <div id="exp-photo-wrap" style="margin-bottom:12px">
-        <button class="btn btn-ghost btn-sm" onclick="el('exp-photo-input').click()">📷 Сделать фото</button>
+      <div class="form-row">
+        <input class="inp" id="exp-inp-desc" placeholder="Описание">
+        <select class="inp" id="exp-inp-cat" style="width:auto;min-width:90px;padding:12px 10px;font-size:14px"></select>
+        <div class="photo-btn" id="exp-photo-btn" onclick="el('exp-photo-input').click()">📷</div>
         <input type="file" id="exp-photo-input" accept="image/*" capture="environment" style="display:none" onchange="onPhotoSelected(this)">
-        <div id="exp-photo-preview" style="display:none;margin-top:8px;position:relative">
-          <img id="exp-photo-img" style="max-height:120px;border-radius:8px;border:1px solid var(--border)">
-          <button style="position:absolute;top:4px;right:4px;width:24px;height:24px;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;border:none;font-size:14px;cursor:pointer" onclick="clearPhoto()">&times;</button>
-        </div>
+      </div>
+      <div id="exp-photo-preview" style="display:none;margin-bottom:10px;position:relative">
+        <img id="exp-photo-img" style="max-height:100px;border-radius:8px;border:1px solid var(--border)">
+        <button style="position:absolute;top:4px;right:4px;width:24px;height:24px;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;border:none;font-size:14px;cursor:pointer" onclick="clearPhoto()">&times;</button>
       </div>
 
-      <div class="exp-row">
-        <div>
-          <div class="inp-label">Сумма</div>
-          <input class="inp" id="exp-inp-amount" type="number" inputmode="decimal" placeholder="0" oninput="updateSplitPreview()">
-        </div>
-        <div>
-          <div class="inp-label">Валюта</div>
-          <select class="inp inp-select" id="exp-inp-currency">
-            <option value="RUB">₽ RUB</option>
-            <option value="USD">$ USD</option>
-            <option value="EUR">€ EUR</option>
-            <option value="THB">฿ THB</option>
-            <option value="TRY">₺ TRY</option>
-            <option value="GEL">₾ GEL</option>
-          </select>
-        </div>
+      <div class="form-row">
+        <input class="inp" id="exp-inp-amount" type="number" inputmode="decimal" placeholder="Сумма" oninput="updateSplitPreview()">
+        <select class="inp" id="exp-inp-currency" style="width:auto;min-width:80px;padding:12px 10px;font-size:14px">
+          <option value="RUB">₽ RUB</option>
+          <option value="USD">$ USD</option>
+          <option value="EUR">€ EUR</option>
+          <option value="THB">฿ THB</option>
+          <option value="TRY">₺ TRY</option>
+          <option value="GEL">₾ GEL</option>
+        </select>
       </div>
 
-      <div class="inp-label" style="margin-top:12px">Дата</div>
-      <input class="inp" id="exp-inp-date" type="date">
+      <div class="form-row">
+        <select class="inp" id="exp-inp-payer" style="flex:1;padding:12px 14px;font-size:15px"></select>
+        <input class="inp" id="exp-inp-date" type="date" style="flex:0 0 auto;width:auto;min-width:140px;padding:12px 10px;font-size:14px">
+      </div>
 
-      <div class="inp-label" style="margin-top:12px">Кто заплатил</div>
-      <div class="chip-row" id="exp-payers"></div>
-
-      <div class="inp-label" style="margin-top:4px">Разделить</div>
-      <div class="chip-row" id="exp-split-types">
-        <button class="chip on" onclick="pickSplitType('equal')">Поровну</button>
-        <button class="chip" onclick="pickSplitType('parts')">По долям</button>
-        <button class="chip" onclick="pickSplitType('amounts')">По суммам</button>
+      <div class="split-header">
+        <div class="inp-label">Разделить</div>
+        <div class="chip-row" id="exp-split-types" style="margin:0;gap:4px">
+          <button class="chip on" onclick="pickSplitType('equal')">Поровну</button>
+          <button class="chip" onclick="pickSplitType('parts')">По долям</button>
+          <button class="chip" onclick="pickSplitType('amounts')">По суммам</button>
+        </div>
       </div>
 
       <div id="exp-members"></div>
@@ -598,28 +603,23 @@ body{margin:0;padding:0;height:100%;font-family:'Manrope',system-ui,sans-serif;f
 
     <!-- TRANSFER fields -->
     <div id="exp-fields-transfer" style="display:none">
-      <div class="exp-row">
-        <div>
-          <div class="inp-label">Сумма</div>
-          <input class="inp" id="exp-tr-amount" type="number" inputmode="decimal" placeholder="0">
-        </div>
-        <div>
-          <div class="inp-label">Валюта</div>
-          <select class="inp inp-select" id="exp-tr-currency">
-            <option value="RUB">₽ RUB</option>
-            <option value="USD">$ USD</option>
-            <option value="EUR">€ EUR</option>
-            <option value="THB">฿ THB</option>
-            <option value="TRY">₺ TRY</option>
-            <option value="GEL">₾ GEL</option>
-          </select>
-        </div>
+      <div class="form-row">
+        <input class="inp" id="exp-tr-amount" type="number" inputmode="decimal" placeholder="Сумма">
+        <select class="inp" id="exp-tr-currency" style="width:auto;min-width:80px;padding:12px 10px;font-size:14px">
+          <option value="RUB">₽ RUB</option>
+          <option value="USD">$ USD</option>
+          <option value="EUR">€ EUR</option>
+          <option value="THB">฿ THB</option>
+          <option value="TRY">₺ TRY</option>
+          <option value="GEL">₾ GEL</option>
+        </select>
       </div>
 
-      <div class="inp-label" style="margin-top:12px">Дата</div>
-      <input class="inp" id="exp-tr-date" type="date">
+      <div class="form-row">
+        <input class="inp" id="exp-tr-date" type="date" style="flex:1">
+      </div>
 
-      <div class="inp-label" style="margin-top:12px">От кого</div>
+      <div class="inp-label">От кого</div>
       <div class="chip-row" id="exp-tr-from"></div>
 
       <div class="inp-label" style="margin-top:4px">Кому</div>
@@ -809,6 +809,7 @@ function goTab(idx) {
   S.curTab = idx;
   el('screens').children[idx].scrollIntoView({ behavior:'smooth', inline:'start' });
   document.querySelectorAll('.ni').forEach((b,i) => b.classList.toggle('on', i===idx));
+  el('fab-expenses').style.display = idx === 4 ? '' : 'none';
 }
 
 // Sync nav on scroll
@@ -819,6 +820,7 @@ el('screens')?.addEventListener('scroll', () => {
   if (idx !== S.curTab) {
     S.curTab = idx;
     document.querySelectorAll('.ni').forEach((b,i) => b.classList.toggle('on', i===idx));
+    el('fab-expenses').style.display = idx === 4 ? '' : 'none';
   }
 });
 
@@ -1514,8 +1516,18 @@ function showAddOperation(editId) {
   _expPhotoFile = null;
 
   el('exp-photo-preview').style.display = 'none';
+  el('exp-photo-btn').classList.remove('has-photo');
   el('exp-inp-date').value = new Date().toISOString().split('T')[0];
   el('exp-tr-date').value = new Date().toISOString().split('T')[0];
+
+  // Populate category select
+  el('exp-inp-cat').innerHTML = CATS.map(c => '<option value="'+c.id+'">'+c.icon+' '+c.label+'</option>').join('');
+
+  // Populate payer select
+  el('exp-inp-payer').innerHTML = _members.map(m =>
+    '<option value="'+m.tg_id+'"'+(m.tg_id===_expPayer?' selected':'')+'>'+esc(m.display_name||m.tg_name||'?')+'</option>'
+  ).join('');
+  el('exp-inp-payer').onchange = function(){ _expPayer = this.value; };
 
   if (_expEditId) {
     const exp = _expenses.find(e => e.id === _expEditId);
@@ -1525,8 +1537,7 @@ function showAddOperation(editId) {
     _expPayer = exp.paid_by;
     _expSplitType = exp.split_type || 'equal';
 
-    el('exp-form-title').textContent = 'Редактировать';
-    el('exp-form-sub').textContent = '';
+    el('exp-form-sub').style.display = 'none';
 
     if (_expOpType === 'transfer') {
       _expTransferFrom = exp.paid_by;
@@ -1539,14 +1550,16 @@ function showAddOperation(editId) {
       el('exp-inp-amount').value = parseFloat(exp.amount);
       el('exp-inp-currency').value = exp.currency || 'RUB';
       el('exp-inp-date').value = exp.expense_date || new Date().toISOString().split('T')[0];
+      el('exp-inp-cat').value = exp.category || 'food';
+      el('exp-inp-payer').value = exp.paid_by;
       if (exp.photo_url) {
         el('exp-photo-img').src = exp.photo_url;
         el('exp-photo-preview').style.display = '';
+        el('exp-photo-btn').classList.add('has-photo');
       }
     }
   } else {
-    el('exp-form-title').textContent = 'Новая операция';
-    el('exp-form-sub').textContent = 'Добавить расход, доход или перевод';
+    el('exp-form-sub').style.display = 'none';
     el('exp-inp-desc').value = '';
     el('exp-inp-amount').value = '';
     el('exp-inp-currency').value = 'RUB';
@@ -1577,16 +1590,16 @@ function pickOpType(type) {
   if (!_expEditId) {
     if (type === 'income') {
       el('exp-form-sub').textContent = 'Возврат депозита, кэшбек, компенсация';
+      el('exp-form-sub').style.display = '';
     } else if (type === 'transfer') {
       el('exp-form-sub').textContent = 'Перевод денег между участниками';
+      el('exp-form-sub').style.display = '';
     } else {
-      el('exp-form-sub').textContent = 'Добавить расход группы';
+      el('exp-form-sub').style.display = 'none';
     }
   }
 
   if (type !== 'transfer') {
-    renderCategoryChips();
-    renderPayerChips();
     renderSplitTypeChips();
     renderMemberSplits();
   } else {
@@ -1594,17 +1607,6 @@ function pickOpType(type) {
   }
 }
 
-function renderCategoryChips() {
-  el('exp-cats').innerHTML = CATS.map(c =>
-    '<button class="chip'+(c.id===_expCat?' on':'')+'" onclick="pickExpCat(\''+c.id+'\',this)">'+c.icon+' '+c.label+'</button>'
-  ).join('');
-}
-
-function renderPayerChips() {
-  el('exp-payers').innerHTML = _members.map(m =>
-    '<button class="chip'+(m.tg_id===_expPayer?' on':'')+'" onclick="pickExpPayer(\''+m.tg_id+'\',this)">'+esc(m.display_name||m.tg_name||'?')+'</button>'
-  ).join('');
-}
 
 function renderSplitTypeChips() {
   const types = [['equal','Поровну'],['parts','По долям'],['amounts','По суммам']];
@@ -1727,6 +1729,7 @@ function onPhotoSelected(input) {
   reader.onload = e => {
     el('exp-photo-img').src = e.target.result;
     el('exp-photo-preview').style.display = '';
+    el('exp-photo-btn').classList.add('has-photo');
   };
   reader.readAsDataURL(_expPhotoFile);
 }
@@ -1734,20 +1737,30 @@ function onPhotoSelected(input) {
 function clearPhoto() {
   _expPhotoFile = null;
   el('exp-photo-preview').style.display = 'none';
+  el('exp-photo-btn').classList.remove('has-photo');
   el('exp-photo-input').value = '';
 }
 
-async function uploadPhoto() {
-  if (!_expPhotoFile) return null;
-  const ext = _expPhotoFile.name.split('.').pop() || 'jpg';
-  const fname = crypto.randomUUID() + '.' + ext;
-  const r = await fetch(`${SB_URL}/storage/v1/object/receipts/${fname}`, {
-    method: 'POST',
-    headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': _expPhotoFile.type },
-    body: _expPhotoFile
+function uploadPhoto() {
+  return new Promise(resolve => {
+    if (!_expPhotoFile) { resolve(null); return; }
+    const reader = new FileReader();
+    reader.onload = () => {
+      // Compress to max ~800px wide for DB storage
+      const img = new Image();
+      img.onload = () => {
+        const MAX = 800;
+        let w = img.width, h = img.height;
+        if (w > MAX) { h = Math.round(h * MAX / w); w = MAX; }
+        const cvs = document.createElement('canvas');
+        cvs.width = w; cvs.height = h;
+        cvs.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(cvs.toDataURL('image/jpeg', 0.7));
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(_expPhotoFile);
   });
-  if (!r.ok) return null;
-  return `${SB_URL}/storage/v1/object/public/receipts/${fname}`;
 }
 
 /* ═══════════════════════════════════════════
@@ -1774,7 +1787,7 @@ async function submitExpense() {
     paid_by: _expPayer,
     amount: amount,
     description: desc,
-    category: _expCat,
+    category: el('exp-inp-cat').value || 'food',
     split_type: _expSplitType,
     op_type: _expOpType,
     currency: currency,
