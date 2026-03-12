@@ -174,22 +174,23 @@ body{margin:0;padding:0;height:100%;font-family:'Manrope',system-ui,sans-serif;f
 .place-cat{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;background:var(--accent-bg);color:var(--accent)}
 .place-map-btn{display:inline-flex;align-items:center;gap:4px;padding:6px 12px;border-radius:8px;background:var(--blue-bg);color:var(--blue);font-size:12px;font-weight:700;text-decoration:none;margin-left:8px}
 
-/* ─── MESSAGES ─── */
-.msg-item{padding:12px 16px;margin-bottom:8px}
-.msg-item.pinned{border-color:var(--accent);background:var(--accent-bg)}
-.msg-author{font-size:11px;font-weight:700;color:var(--accent);margin-bottom:2px}
-.msg-text{font-size:14px;line-height:1.5}
-.msg-time{font-size:11px;color:var(--ph);margin-top:4px}
-
-/* ─── CHECKINS ─── */
-.checkin-btn{margin-bottom:16px}
-.checkin-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:10px}
-.checkin-person{display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 8px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r)}
-.checkin-person.here{border-color:var(--green);background:var(--green-bg)}
-.checkin-ava{width:40px;height:40px;border-radius:50%;background:var(--surface2);overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;color:var(--accent)}
-.checkin-ava img{width:100%;height:100%;object-fit:cover;border-radius:50%}
-.checkin-name{font-size:11px;font-weight:600;text-align:center;line-height:1.2}
-.checkin-time{font-size:10px;color:var(--green);font-weight:600}
+/* ─── CHAT ─── */
+.chat-wrap{display:flex;flex-direction:column;height:calc(100vh - var(--nav-h) - var(--safe-bot) - 10px)}
+.chat-messages{flex:1;overflow-y:auto;padding:8px 16px 12px;display:flex;flex-direction:column}
+.chat-date-sep{text-align:center;font-size:11px;font-weight:700;color:var(--ph);margin:12px 0 8px;letter-spacing:.3px}
+.chat-bubble{max-width:80%;padding:10px 14px;border-radius:16px;margin-bottom:6px;font-size:14px;line-height:1.4;word-break:break-word}
+.chat-bubble.mine{background:var(--accent);color:#fff;align-self:flex-end;border-bottom-right-radius:4px}
+.chat-bubble.other{background:var(--surface);border:1px solid var(--border);color:var(--text);align-self:flex-start;border-bottom-left-radius:4px}
+.chat-bubble .cb-name{font-size:11px;font-weight:700;color:var(--sub);margin-bottom:2px}
+.chat-bubble.mine .cb-name{color:rgba(255,255,255,.7)}
+.chat-bubble .cb-time{font-size:10px;color:var(--ph);text-align:right;margin-top:4px}
+.chat-bubble.mine .cb-time{color:rgba(255,255,255,.6)}
+.chat-bubble.pinned{border-left:3px solid var(--accent)}
+.chat-input-bar{display:flex;gap:8px;padding:8px 16px;border-top:1px solid var(--border);background:var(--surface);flex-shrink:0}
+.chat-input-bar input{flex:1;border:1px solid var(--border);border-radius:20px;padding:8px 14px;font-size:14px;font-family:inherit;background:var(--bg);color:var(--text);outline:none}
+.chat-input-bar input:focus{border-color:var(--accent)}
+.chat-input-bar button{width:36px;height:36px;border-radius:50%;background:var(--accent);color:#fff;border:none;font-size:16px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.chat-input-bar button:active{transform:scale(.92)}
 
 /* ─── EXPENSES ─── */
 .exp-tabs{display:flex;gap:6px;margin-bottom:16px}
@@ -442,7 +443,7 @@ body{margin:0;padding:0;height:100%;font-family:'Manrope',system-ui,sans-serif;f
       <div class="wl-feat"><div class="wl-feat-icon">📅</div><div class="wl-feat-label">Расписание</div><div class="wl-feat-sub">По часам на каждый день</div></div>
       <div class="wl-feat"><div class="wl-feat-icon">💸</div><div class="wl-feat-label">Расходы</div><div class="wl-feat-sub">Кто кому сколько должен</div></div>
       <div class="wl-feat"><div class="wl-feat-icon">📍</div><div class="wl-feat-label">Места</div><div class="wl-feat-sub">Адреса и ссылки на карту</div></div>
-      <div class="wl-feat"><div class="wl-feat-icon">👋</div><div class="wl-feat-label">Чекины</div><div class="wl-feat-sub">Кто уже на месте</div></div>
+      <div class="wl-feat"><div class="wl-feat-icon">💬</div><div class="wl-feat-label">Чат</div><div class="wl-feat-sub">Общение в группе</div></div>
     </div>
   </div>
 </div>
@@ -487,27 +488,20 @@ body{margin:0;padding:0;height:100%;font-family:'Manrope',system-ui,sans-serif;f
 
     <!-- TAB 2: MESSAGES -->
     <div class="screen" id="scr-2">
-      <div class="screen-inner">
-        <div class="page-hdr">
-          <div class="page-hdr-title">Сообщения</div>
+      <div class="chat-wrap">
+        <div class="page-hdr" style="flex-shrink:0">
+          <div class="page-hdr-title">Чат</div>
         </div>
-        <div id="messages-list"></div>
+        <div class="chat-messages" id="chat-messages"></div>
+        <div class="chat-input-bar">
+          <input type="text" id="chat-input" placeholder="Сообщение..." maxlength="500" onkeydown="if(event.key==='Enter')sendChatMessage()">
+          <button onclick="sendChatMessage()">&#10148;</button>
+        </div>
       </div>
     </div>
 
-    <!-- TAB 3: CHECKINS -->
+    <!-- TAB 3: EXPENSES -->
     <div class="screen" id="scr-3">
-      <div class="screen-inner">
-        <div class="page-hdr">
-          <div class="page-hdr-title">Кто здесь</div>
-        </div>
-        <button class="btn btn-accent checkin-btn" id="checkin-btn" onclick="doCheckin()">Я на месте!</button>
-        <div class="checkin-grid" id="checkin-grid"></div>
-      </div>
-    </div>
-
-    <!-- TAB 4: EXPENSES -->
-    <div class="screen" id="scr-4">
       <div class="screen-inner">
         <div class="page-hdr">
           <div class="page-hdr-title">Расходы</div>
@@ -559,15 +553,11 @@ body{margin:0;padding:0;height:100%;font-family:'Manrope',system-ui,sans-serif;f
       <span>Места</span>
     </button>
     <button class="ni" onclick="goTab(2)">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
-      <span>Сообщения</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+      <span>Чат</span>
       <div class="badge-dot" id="msg-badge"></div>
     </button>
     <button class="ni" onclick="goTab(3)">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
-      <span>Кто здесь</span>
-    </button>
-    <button class="ni" onclick="goTab(4)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
       <span>Расходы</span>
     </button>
@@ -892,7 +882,7 @@ window.addEventListener('offline', () => { updateOfflineBar(); });
 ═══════════════════════════════════════════ */
 let S = { user:null, tripId:null, curTab:0 };
 let _tgCode=null, _pollTimer=null, _notifTimer=null;
-let _members=[], _expenses=[], _splits=[], _settlements=[], _scheduleEvents=[], _places=[], _messages=[], _checkins=[];
+let _members=[], _expenses=[], _splits=[], _settlements=[], _scheduleEvents=[], _places=[], _messages=[];
 let _selDay=null, _tripDays=[];
 let _expCat='food', _expPayer=null;
 let _expOpType='expense', _expSplitType='equal', _expEditId=null, _expSubTab=0;
@@ -1032,7 +1022,7 @@ function goTab(idx) {
   S.curTab = idx;
   el('screens').children[idx].scrollIntoView({ behavior:'smooth', inline:'start' });
   document.querySelectorAll('.ni').forEach((b,i) => b.classList.toggle('on', i===idx));
-  el('fab-expenses').style.display = idx === 4 ? '' : 'none';
+  el('fab-expenses').style.display = idx === 3 ? '' : 'none';
 }
 
 // Sync nav on scroll
@@ -1043,7 +1033,7 @@ el('screens')?.addEventListener('scroll', () => {
   if (idx !== S.curTab) {
     S.curTab = idx;
     document.querySelectorAll('.ni').forEach((b,i) => b.classList.toggle('on', i===idx));
-    el('fab-expenses').style.display = idx === 4 ? '' : 'none';
+    el('fab-expenses').style.display = idx === 3 ? '' : 'none';
   }
 });
 
@@ -1129,7 +1119,13 @@ async function startTgAuth() {
   btn.textContent = 'Создаём код...';
 
   try {
-    const r = await fetch('/api/auth/tg-init', { method:'POST' });
+    const pendingJoin = sessionStorage.getItem('ot_pending_join');
+    const initBody = pendingJoin ? JSON.stringify({ trip_id: pendingJoin }) : '{}';
+    const r = await fetch('/api/auth/tg-init', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: initBody
+    });
     const data = await r.json();
     if (!data.code) throw new Error('No code');
 
@@ -1178,9 +1174,54 @@ function handleAuthSuccess(user) {
   S.user = user;
   S.tripId = user.tripId;
   localStorage.setItem('ot_user', JSON.stringify(user));
-  localStorage.setItem('ot_trip', user.tripId);
+  localStorage.setItem('ot_trip', user.tripId || '');
+  sessionStorage.removeItem('ot_pending_join');
   el('welcome-screen').classList.add('hidden');
+  if (!user.tripId) {
+    showNoTripScreen();
+  } else {
+    bootApp();
+  }
+}
+
+async function joinExistingUserToTrip(tripId) {
+  try {
+    await sbPost('members', {
+      trip_id: tripId,
+      tg_id: S.user.tgId,
+      tg_name: S.user.name,
+      tg_username: S.user.username || '',
+      tg_photo: S.user.photo || '',
+      display_name: S.user.name,
+      role: 'participant',
+      joined_at: new Date().toISOString()
+    });
+  } catch {}
+  S.tripId = tripId;
+  S.user.tripId = tripId;
+  localStorage.setItem('ot_trip', tripId);
+  localStorage.setItem('ot_user', JSON.stringify(S.user));
+  sessionStorage.removeItem('ot_pending_join');
+  const noTrip = el('no-trip-screen');
+  if (noTrip) noTrip.style.display = 'none';
+  el('app-wrap').style.display = '';
   bootApp();
+}
+
+function showNoTripScreen() {
+  el('app-wrap').style.display = 'none';
+  let scr = el('no-trip-screen');
+  if (!scr) {
+    scr = document.createElement('div');
+    scr.id = 'no-trip-screen';
+    scr.style.cssText = 'display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:32px;text-align:center';
+    scr.innerHTML = '<div style="font-size:48px;margin-bottom:16px">🎒</div>'
+      + '<div style="font-size:20px;font-weight:800;color:var(--text);margin-bottom:8px">Нет активной поездки</div>'
+      + '<div style="font-size:14px;color:var(--sub);line-height:1.5;max-width:280px;margin-bottom:24px">Отсканируй QR-код организатора, чтобы присоединиться к поездке</div>'
+      + '<button class="btn btn-ghost btn-sm" onclick="logout()" style="width:auto">Выйти</button>';
+    document.body.appendChild(scr);
+  }
+  scr.style.display = 'flex';
 }
 
 function logout() {
@@ -1216,8 +1257,7 @@ function showSkeletons() {
 
   el('schedule-list').innerHTML = skelCard(4, skelTimeline);
   el('places-list').innerHTML = skelCard(3, '<div class="skel" style="width:50%;height:16px"></div><div class="skel" style="width:80%;height:12px"></div><div class="skel" style="width:30%;height:20px;margin-top:8px"></div>');
-  el('messages-list').innerHTML = skelCard(3, '<div class="skel" style="width:30%;height:11px"></div><div class="skel" style="width:90%;height:14px;margin-top:6px"></div><div class="skel" style="width:20%;height:10px;margin-top:6px"></div>');
-  el('checkin-grid').innerHTML = Array(6).fill(0).map(() => '<div class="checkin-person"><div class="skel skel-circle" style="width:40px;height:40px"></div><div class="skel" style="width:50px;height:10px"></div></div>').join('');
+  el('chat-messages').innerHTML = skelCard(3, '<div class="skel" style="width:30%;height:11px"></div><div class="skel" style="width:90%;height:14px;margin-top:6px"></div><div class="skel" style="width:20%;height:10px;margin-top:6px"></div>');
   el('exp-summary').innerHTML = '<div class="exp-stat"><div class="skel" style="width:60%;height:22px"></div><div class="skel" style="width:40%;height:11px;margin-top:6px"></div></div><div class="exp-stat"><div class="skel" style="width:60%;height:22px"></div><div class="skel" style="width:40%;height:11px;margin-top:6px"></div></div>';
   el('expenses-list').innerHTML = skelCard(3, skelExpItem);
 }
@@ -1246,7 +1286,6 @@ async function bootApp() {
     loadSchedule(),
     loadPlaces(),
     loadMessages(),
-    loadCheckins(),
     loadExpenses()
   ]);
 
@@ -1310,7 +1349,7 @@ async function doPullRefresh() {
 }
 
 async function loadAll() {
-  await Promise.all([loadMembers(), loadSchedule(), loadPlaces(), loadMessages(), loadCheckins(), loadExpenses()]);
+  await Promise.all([loadMembers(), loadSchedule(), loadPlaces(), loadMessages(), loadExpenses()]);
 }
 
 function updateUserUI() {
@@ -1385,13 +1424,8 @@ async function loadPlaces() {
 }
 
 async function loadMessages() {
-  _messages = await sbGet('messages', 'trip_id=eq.'+S.tripId+'&order=created_at.desc&limit=50');
-  renderMessages();
-}
-
-async function loadCheckins() {
-  _checkins = await sbGet('checkins', 'trip_id=eq.'+S.tripId+'&order=checked_in_at.desc');
-  renderCheckins();
+  _messages = await sbGet('messages', 'trip_id=eq.'+S.tripId+'&order=created_at.asc&limit=200');
+  renderChat();
 }
 
 async function loadExpenses() {
@@ -1475,62 +1509,72 @@ function renderPlaces() {
 }
 
 /* ═══════════════════════════════════════════
-   RENDER: MESSAGES
+   RENDER: CHAT
 ═══════════════════════════════════════════ */
-function renderMessages() {
+function renderChat() {
+  const container = el('chat-messages');
+  if (!container) return;
   if (!_messages.length) {
-    el('messages-list').innerHTML = '<div class="empty-wrap"><div class="empty-illustration">💬</div><div class="empty-title">Пока нет сообщений</div><div class="empty-sub">Здесь будут появляться сообщения от организатора в реальном времени.</div></div>';
+    container.innerHTML = '<div class="empty-wrap"><div class="empty-illustration">💬</div><div class="empty-title">Пока нет сообщений</div><div class="empty-sub">Напишите первое сообщение!</div></div>';
     return;
   }
-  el('messages-list').innerHTML = _messages.map(m => {
+  let html = '';
+  let lastDate = '';
+  _messages.forEach(m => {
     const t = new Date(m.created_at);
-    const time = pad(t.getHours())+':'+pad(t.getMinutes());
-    const date = pad(t.getDate())+'.'+pad(t.getMonth()+1);
-    return '<div class="card msg-item'+(m.is_pinned?' pinned':'')+'"><div class="msg-author">'+(m.is_pinned?'📌 ':'')+esc(m.author_name||'Организатор')+'</div><div class="msg-text">'+esc(m.text)+'</div><div class="msg-time">'+date+' '+time+'</div></div>';
-  }).join('');
-}
-
-/* ═══════════════════════════════════════════
-   RENDER: CHECKINS
-═══════════════════════════════════════════ */
-function renderCheckins() {
-  // Get latest checkin per member (within last 4 hours)
-  const cutoff = Date.now() - 4*60*60*1000;
-  const latest = {};
-  _checkins.forEach(c => {
-    const t = new Date(c.checked_in_at).getTime();
-    if (t > cutoff && (!latest[c.member_tg_id] || t > new Date(latest[c.member_tg_id].checked_in_at).getTime())) {
-      latest[c.member_tg_id] = c;
+    const dateStr = pad(t.getDate())+'.'+pad(t.getMonth()+1)+'.'+t.getFullYear();
+    if (dateStr !== lastDate) {
+      lastDate = dateStr;
+      html += '<div class="chat-date-sep">'+pad(t.getDate())+' '+['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'][t.getMonth()]+'</div>';
     }
+    const isMine = String(m.author_tg_id) === String(S.user?.tgId);
+    const cls = 'chat-bubble ' + (isMine ? 'mine' : 'other') + (m.is_pinned ? ' pinned' : '');
+    const name = isMine ? '' : '<div class="cb-name">'+(m.is_pinned?'📌 ':'')+esc(m.author_name||'Организатор')+'</div>';
+    const time = '<div class="cb-time">'+pad(t.getHours())+':'+pad(t.getMinutes())+'</div>';
+    html += '<div class="'+cls+'">'+name+'<div>'+esc(m.text)+'</div>'+time+'</div>';
   });
-
-  const here = Object.keys(latest);
-  el('checkin-btn').textContent = here.includes(S.user?.tgId) ? 'Я на месте!' : 'Я на месте!';
-
-  el('checkin-grid').innerHTML = _members.map(m => {
-    const isHere = !!latest[m.tg_id];
-    const c = latest[m.tg_id];
-    const timeStr = c ? fmtTime(new Date(c.checked_in_at)) : '';
-    const ava = m.tg_photo ? '<img src="'+m.tg_photo+'" onerror="this.parentElement.textContent=\''+((m.display_name||m.tg_name||'?')[0])+'\'">' : (m.display_name||m.tg_name||'?')[0].toUpperCase();
-    return '<div class="checkin-person'+(isHere?' here':'')+'"><div class="checkin-ava">'+ava+'</div><div class="checkin-name">'+esc(m.display_name||m.tg_name||'?')+'</div>'+(isHere?'<div class="checkin-time">'+timeStr+'</div>':'')+'</div>';
-  }).join('');
+  container.innerHTML = html;
+  container.scrollTop = container.scrollHeight;
 }
 
-async function doCheckin() {
-  const btn = el('checkin-btn');
-  btn.disabled = true;
-  btn.textContent = 'Отмечаюсь...';
-  await sbPost('checkins', {
+async function sendChatMessage() {
+  const input = el('chat-input');
+  const text = input.value.trim();
+  if (!text || !S.user) return;
+
+  input.value = '';
+  input.focus();
+
+  const tempMsg = {
+    id: 'local_' + Date.now(),
     trip_id: S.tripId,
-    member_tg_id: S.user.tgId,
-    checked_in_at: new Date().toISOString()
-  });
-  btn.disabled = false;
-  btn.textContent = 'Я на месте!';
-  showSuccess();
-  toast('Отметка сохранена');
-  if (navigator.vibrate) navigator.vibrate(50);
-  await loadCheckins();
+    author_tg_id: S.user.tgId,
+    author_name: S.user.name,
+    text: text,
+    is_pinned: false,
+    created_at: new Date().toISOString()
+  };
+  _messages.push(tempMsg);
+  renderChat();
+
+  try {
+    const rows = await sbPost('messages', {
+      trip_id: S.tripId,
+      author_tg_id: S.user.tgId,
+      author_name: S.user.name,
+      text: text,
+      is_pinned: false
+    });
+    if (rows && rows[0]) {
+      const idx = _messages.findIndex(m => m.id === tempMsg.id);
+      if (idx !== -1) _messages[idx] = rows[0];
+    }
+  } catch {
+    const idx = _messages.findIndex(m => m.id === tempMsg.id);
+    if (idx !== -1) _messages.splice(idx, 1);
+    renderChat();
+    toast('Ошибка отправки');
+  }
 }
 
 /* ═══════════════════════════════════════════
@@ -2373,16 +2417,11 @@ function initRealtime() {
 
     _supabase.channel('messages-rt')
       .on('postgres_changes', { event:'INSERT', schema:'public', table:'messages', filter:'trip_id=eq.'+S.tripId }, payload => {
-        _messages.unshift(payload.new);
-        renderMessages();
+        if (!_messages.find(m => m.id === payload.new.id)) {
+          _messages.push(payload.new);
+          renderChat();
+        }
         if (S.curTab !== 2) showNotif(payload.new.text);
-      })
-      .subscribe();
-
-    _supabase.channel('checkins-rt')
-      .on('postgres_changes', { event:'INSERT', schema:'public', table:'checkins', filter:'trip_id=eq.'+S.tripId }, payload => {
-        _checkins.unshift(payload.new);
-        renderCheckins();
       })
       .subscribe();
 
@@ -2420,6 +2459,14 @@ function memberName(tgId) {
 (function init() {
   applyTheme(getTheme());
 
+  // Parse ?join= URL parameter
+  const params = new URLSearchParams(location.search);
+  const joinTrip = params.get('join');
+  if (joinTrip) {
+    sessionStorage.setItem('ot_pending_join', joinTrip);
+    history.replaceState(null, '', location.pathname);
+  }
+
   // Check stored session
   const stored = localStorage.getItem('ot_user');
   if (stored) {
@@ -2427,7 +2474,15 @@ function memberName(tgId) {
       S.user = JSON.parse(stored);
       S.tripId = localStorage.getItem('ot_trip');
       el('welcome-screen').classList.add('hidden');
-      bootApp();
+
+      // If logged-in user scans QR for a new trip
+      if (joinTrip && joinTrip !== S.tripId) {
+        joinExistingUserToTrip(joinTrip);
+      } else if (!S.tripId) {
+        showNoTripScreen();
+      } else {
+        bootApp();
+      }
     } catch {
       localStorage.removeItem('ot_user');
     }
