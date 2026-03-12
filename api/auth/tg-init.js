@@ -3,12 +3,11 @@ export default async function handler(req, res) {
 
   const SB_URL = process.env.SUPABASE_URL || 'https://ylfxjduenbvjmfbqrfzc.supabase.co';
   const SB_KEY = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlsZnhqZHVlbmJ2am1mYnFyZnpjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMyMjQ2NjcsImV4cCI6MjA4ODgwMDY2N30.aMCyh1wOm_s86aG2uMS5rlDTpmPYl_RwgdDcLSFn6_Q';
-  const DEFAULT_TRIP_ID = process.env.DEFAULT_TRIP_ID;
   const HDR = { 'Content-Type': 'application/json', 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}` };
 
   try {
     const body = req.body || {};
-    const tripId = body.trip_id || DEFAULT_TRIP_ID;
+    const tripId = body.trip_id || null;
     const code = String(Math.floor(100000 + Math.random() * 900000));
 
     const r = await fetch(`${SB_URL}/rest/v1/auth_codes`, {
