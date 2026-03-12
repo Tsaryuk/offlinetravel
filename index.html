@@ -363,6 +363,12 @@ body{margin:0;padding:0;height:100%;font-family:'Manrope',system-ui,sans-serif;f
 .theme-select{display:flex;gap:4px}
 .theme-opt{padding:6px 12px;border-radius:8px;border:1.5px solid var(--border);background:none;font-family:inherit;font-size:12px;font-weight:700;color:var(--sub);cursor:pointer}
 .theme-opt.on{background:var(--acc);border-color:var(--acc);color:var(--acc-fg)}
+.trip-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--r);margin-bottom:6px;cursor:pointer;border:1.5px solid var(--border)}
+.trip-item:active{opacity:.7}
+.trip-item.current{background:var(--accent-bg);border-color:var(--accent-border)}
+.trip-item-name{font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.trip-item-dates{font-size:11px;color:var(--sub)}
+.trip-item-badge{font-size:10px;font-weight:700;color:var(--accent);margin-left:auto;flex-shrink:0}
 
 /* ─── EMPTY STATE ─── */
 .empty{text-align:center;color:var(--sub);padding:40px 20px;font-size:14px}
@@ -442,8 +448,8 @@ body{margin:0;padding:0;height:100%;font-family:'Manrope',system-ui,sans-serif;f
 <div class="ptr-indicator" id="ptr-indicator"><div class="ptr-spinner"></div></div>
 
 <!-- NOTIFICATION BANNER -->
-<div id="notif-banner" onclick="goTab(2);hideNotif()">
-  <div class="notif-title">Новое сообщение</div>
+<div id="notif-banner" onclick="onNotifClick()">
+  <div class="notif-title" id="notif-title">Новое сообщение</div>
   <div class="notif-text" id="notif-text"></div>
 </div>
 
@@ -587,6 +593,7 @@ body{margin:0;padding:0;height:100%;font-family:'Manrope',system-ui,sans-serif;f
     <button class="ni on" onclick="goTab(0)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
       <span>Расписание</span>
+      <div class="badge-dot" id="sched-badge"></div>
     </button>
     <button class="ni" onclick="goTab(1)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
@@ -798,7 +805,12 @@ body{margin:0;padding:0;height:100%;font-family:'Manrope',system-ui,sans-serif;f
         </div>
       </div>
 
-      <button class="btn btn-ghost" style="margin-top:20px" onclick="logout()">Выйти</button>
+      <div style="margin-top:20px">
+        <div style="font-size:14px;font-weight:700;margin-bottom:10px">Мои поездки</div>
+        <div id="prof-trips"></div>
+      </div>
+      <button class="btn" id="prof-leave-trip" style="margin-top:12px;background:var(--surface2);color:var(--red);border:1px solid var(--red);display:none" onclick="leaveTrip()">Покинуть поездку</button>
+      <button class="btn btn-ghost" style="margin-top:12px" onclick="logout()">Выйти</button>
     </div>
   </div>
 </div>
@@ -1176,6 +1188,8 @@ function goTab(idx) {
   el('screens').children[idx].scrollIntoView({ behavior:'smooth', inline:'start' });
   document.querySelectorAll('.ni').forEach((b,i) => b.classList.toggle('on', i===idx));
   el('fab-expenses').style.display = idx === 3 ? '' : 'none';
+  if (idx === 0) el('sched-badge').classList.remove('show');
+  if (idx === 2) el('msg-badge').classList.remove('show');
 }
 
 // Sync nav on scroll
@@ -1187,6 +1201,8 @@ el('screens')?.addEventListener('scroll', () => {
     S.curTab = idx;
     document.querySelectorAll('.ni').forEach((b,i) => b.classList.toggle('on', i===idx));
     el('fab-expenses').style.display = idx === 3 ? '' : 'none';
+    if (idx === 0) el('sched-badge').classList.remove('show');
+    if (idx === 2) el('msg-badge').classList.remove('show');
   }
 });
 
@@ -1497,10 +1513,15 @@ function logout() {
 /* ═══════════════════════════════════════════
    NOTIFICATION BANNER
 ═══════════════════════════════════════════ */
-function showNotif(text) {
+let _notifTarget = 2;
+
+function showNotif(text, opts) {
+  opts = opts || {};
+  _notifTarget = opts.tab != null ? opts.tab : 2;
+  el('notif-title').textContent = opts.title || 'Новое сообщение';
   el('notif-text').textContent = text;
   el('notif-banner').classList.add('show');
-  el('msg-badge').classList.add('show');
+  el(opts.badgeId || 'msg-badge').classList.add('show');
   clearTimeout(_notifTimer);
   _notifTimer = setTimeout(hideNotif, 5000);
 }
@@ -1508,6 +1529,11 @@ function showNotif(text) {
 function hideNotif() {
   el('notif-banner').classList.remove('show');
   clearTimeout(_notifTimer);
+}
+
+function onNotifClick() {
+  goTab(_notifTarget);
+  hideNotif();
 }
 
 /* ═══════════════════════════════════════════
@@ -1654,7 +1680,71 @@ function updateUserUI() {
   if (isAdmin && S.tripId) renderQR();
 }
 
-function showProfile() { openSheet('ov-profile'); }
+function showProfile() { openSheet('ov-profile'); loadMyTrips(); }
+
+async function loadMyTrips() {
+  const container = el('prof-trips');
+  if (!container) return;
+  container.innerHTML = '<div style="color:var(--sub);font-size:13px">Загрузка...</div>';
+  try {
+    const memberships = await sbGet('members', 'tg_id=eq.'+S.user.tgId+'&select=trip_id');
+    if (!memberships || !memberships.length) {
+      container.innerHTML = '<div style="color:var(--sub);font-size:13px">Нет поездок</div>';
+      el('prof-leave-trip').style.display = 'none';
+      return;
+    }
+    const tripIds = [...new Set(memberships.map(m => m.trip_id))];
+    const trips = await sbGet('trips', 'id=in.('+tripIds.join(',')+')&order=start_date.desc');
+    if (!trips || !trips.length) {
+      container.innerHTML = '<div style="color:var(--sub);font-size:13px">Нет поездок</div>';
+      el('prof-leave-trip').style.display = 'none';
+      return;
+    }
+    container.innerHTML = trips.map(t => {
+      const isCurrent = t.id === S.tripId;
+      const dates = t.start_date ? (t.start_date + (t.end_date ? ' — ' + t.end_date : '')) : '';
+      return '<div class="trip-item'+(isCurrent?' current':'')+'" onclick="'+(isCurrent?'':'switchTrip(\''+t.id+'\')')+'">'+
+        '<div style="flex:1;min-width:0">'+
+          '<div class="trip-item-name">'+esc(t.name||'Поездка')+'</div>'+
+          (dates?'<div class="trip-item-dates">'+esc(dates)+'</div>':'')+
+        '</div>'+
+        (isCurrent?'<div class="trip-item-badge">Текущая</div>':'')+
+      '</div>';
+    }).join('');
+    el('prof-leave-trip').style.display = S.tripId ? '' : 'none';
+  } catch(e) {
+    container.innerHTML = '<div style="color:var(--sub);font-size:13px">Ошибка загрузки</div>';
+  }
+}
+
+function switchTrip(tripId) {
+  if (tripId === S.tripId) return;
+  showConfirm(
+    'Переключить поездку?',
+    'Данные текущей поездки будут перезагружены.',
+    () => {
+      closeSheet('ov-profile');
+      localStorage.setItem('ot_trip', tripId);
+      location.reload();
+    },
+    'Переключить',
+    'var(--accent)'
+  );
+}
+
+function leaveTrip() {
+  showConfirm(
+    'Покинуть поездку?',
+    'Вы будете отключены от текущей поездки. Вернуться можно через профиль.',
+    () => {
+      closeSheet('ov-profile');
+      localStorage.setItem('ot_trip', '');
+      location.reload();
+    },
+    'Покинуть',
+    'var(--red)'
+  );
+}
 
 function editPhone() {
   const cur = localStorage.getItem('ot_phone') || '';
@@ -2905,7 +2995,7 @@ function initRealtime() {
           _messages.push(payload.new);
           renderChat();
         }
-        if (S.curTab !== 2) showNotif(payload.new.text);
+        if (S.curTab !== 2) showNotif(payload.new.text, { title:'Новое сообщение', tab:2, badgeId:'msg-badge' });
       })
       .subscribe();
 
@@ -2918,6 +3008,20 @@ function initRealtime() {
     _supabase.channel('settlements-rt')
       .on('postgres_changes', { event:'*', schema:'public', table:'settlements', filter:'trip_id=eq.'+S.tripId }, () => {
         loadExpenses();
+      })
+      .subscribe();
+
+    _supabase.channel('schedule-rt')
+      .on('postgres_changes', { event:'*', schema:'public', table:'schedule', filter:'trip_id=eq.'+S.tripId }, payload => {
+        loadSchedule();
+        const evt = payload.new || payload.old || {};
+        const title = evt.title || 'Расписание';
+        let label = '';
+        if (payload.eventType === 'INSERT') label = 'Добавлено: ' + title;
+        else if (payload.eventType === 'UPDATE') label = 'Изменено: ' + title;
+        else if (payload.eventType === 'DELETE') label = 'Удалено: ' + title;
+        else label = title;
+        if (S.curTab !== 0) showNotif(label, { title:'Изменение расписания', tab:0, badgeId:'sched-badge' });
       })
       .subscribe();
   };
@@ -2939,7 +3043,7 @@ function loadScript(url) {
 let _pdfFontBase64 = null;
 async function loadPdfFont() {
   if (_pdfFontBase64) return;
-  const r = await fetch('https://fonts.gstatic.com/s/roboto/v47/KFOmCnqEu92Fr1Mu4mxP.ttf');
+  const r = await fetch('https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/fonts/Roboto/Roboto-Regular.ttf');
   const buf = await r.arrayBuffer();
   let bin = ''; const bytes = new Uint8Array(buf);
   for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
@@ -3030,12 +3134,13 @@ async function exportPDF() {
     if (hasMultiCurrency) expHead.push('В ' + (_baseCurrency));
 
     const expRows = onlyExpenses
-      .sort((a,b) => (a.date||'').localeCompare(b.date||''))
+      .sort((a,b) => ((a.date||a.created_at||'')).localeCompare(b.date||b.created_at||''))
       .map(e => {
         const cat = CATS.find(x => x.id === (e.category||'other'));
         const cur = e.currency || 'RUB';
+        const d = e.date || (e.created_at ? e.created_at.slice(0,10) : '');
         const row = [
-          e.date || '',
+          d,
           e.description || '',
           cat ? cat.label : (e.category||''),
           memberName(e.paid_by),
@@ -3067,7 +3172,7 @@ async function exportPDF() {
       transfers.forEach(t => {
         checkPage(6);
         const cur = t.currency || _baseCurrency;
-        doc.text(memberName(t.paid_by) + '  →  ' + memberName(t.transfer_to) + ':  ' + fmtMoney(parseFloat(t.amount), cur), margin, y);
+        doc.text(memberName(t.paid_by) + '  ->  ' + memberName(t.transfer_to) + ':  ' + fmtMoney(parseFloat(t.amount), cur), margin, y);
         y += 5;
       });
       y += 4;
@@ -3109,7 +3214,7 @@ async function exportPDF() {
       doc.setFontSize(9);
       settlements.forEach(s => {
         checkPage(6);
-        doc.text(memberName(s.from) + '  →  ' + memberName(s.to) + ':  ' + fmtMoney(s.amount, _baseCurrency), margin, y);
+        doc.text(memberName(s.from) + '  ->  ' + memberName(s.to) + ':  ' + fmtMoney(s.amount, _baseCurrency), margin, y);
         y += 5;
       });
     }
