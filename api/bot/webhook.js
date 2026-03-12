@@ -6,11 +6,15 @@ export default async function handler(req, res) {
   const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
   const HDR = { 'Content-Type': 'application/json', 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}` };
 
-  async function sendTg(chatId, text) {
+  const APP_URL = process.env.APP_URL || 'https://offlinetravel.vercel.app';
+
+  async function sendTg(chatId, text, replyMarkup) {
+    const payload = { chat_id: chatId, text, parse_mode: 'HTML' };
+    if (replyMarkup) payload.reply_markup = replyMarkup;
     await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML' })
+      body: JSON.stringify(payload)
     });
   }
 
@@ -61,7 +65,11 @@ export default async function handler(req, res) {
         );
 
         if (r.ok) {
-          await sendTg(chatId, `Привет, ${from.first_name}!\n\nТы в поездке. Вернись в приложение.`);
+          await sendTg(
+            chatId,
+            `Привет, ${from.first_name}! Ты авторизован.\n\nВернись в приложение Offline.Travel.`,
+            { inline_keyboard: [[{ text: '🚂 Вернуться в приложение', url: APP_URL }]] }
+          );
         } else {
           await sendTg(chatId, 'Код недействителен или истёк. Попробуй ещё раз.');
         }
