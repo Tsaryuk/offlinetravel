@@ -370,6 +370,24 @@ body{margin:0;padding:0;height:100%;font-family:'Manrope',system-ui,sans-serif;f
 .trip-item-dates{font-size:11px;color:var(--sub)}
 .trip-item-badge{font-size:10px;font-weight:700;color:var(--accent);margin-left:auto;flex-shrink:0}
 
+.prof-section{margin-top:20px}
+.prof-section-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--sub);margin-bottom:10px}
+.prof-inp-group{margin-bottom:12px}
+.prof-inp-label{font-size:12px;font-weight:600;color:var(--sub);margin-bottom:4px}
+.prof-stats{display:flex;gap:8px;margin-top:8px}
+.prof-stat{flex:1;text-align:center;padding:12px 8px;background:var(--surface2);border-radius:var(--r)}
+.prof-stat-num{font-size:20px;font-weight:800}
+.prof-stat-label{font-size:11px;color:var(--sub);margin-top:2px}
+.prof-save{display:none;margin-top:16px;width:100%;padding:12px;border:none;border-radius:var(--r);background:var(--acc);color:var(--acc-fg);font-family:inherit;font-size:14px;font-weight:700;cursor:pointer}
+.prof-save:active{opacity:.8}
+.prof-save.show{display:block}
+
+/* ─── ADMIN EDIT ─── */
+.place-card-edit{position:absolute;top:8px;right:8px;width:28px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:rgba(0,0,0,.45);color:#fff;border:none;cursor:pointer;font-size:14px;z-index:2}
+.place-card{position:relative}
+.tl-item-edit{position:absolute;top:8px;right:4px;width:24px;height:24px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:var(--surface2);border:1px solid var(--border);cursor:pointer;font-size:12px;z-index:2}
+.tl-item{position:relative}
+
 /* ─── EMPTY STATE ─── */
 .empty{text-align:center;color:var(--sub);padding:40px 20px;font-size:14px}
 .empty-icon{font-size:40px;margin-bottom:12px;opacity:.5}
@@ -589,6 +607,14 @@ body{margin:0;padding:0;height:100%;font-family:'Manrope',system-ui,sans-serif;f
     <button class="fab" onclick="showAddOperation()">+</button>
     <span class="fab-label">Добавить расход</span>
   </div>
+  <div class="fab-wrap" id="fab-places" style="display:none">
+    <button class="fab" onclick="openPlaceForm()">+</button>
+    <span class="fab-label">Добавить место</span>
+  </div>
+  <div class="fab-wrap" id="fab-schedule" style="display:none">
+    <button class="fab" onclick="openEventForm()">+</button>
+    <span class="fab-label">Добавить событие</span>
+  </div>
 
   <!-- BOTTOM NAV -->
   <div id="nav">
@@ -759,6 +785,7 @@ body{margin:0;padding:0;height:100%;font-family:'Manrope',system-ui,sans-serif;f
       <div id="mp-role" style="display:none;text-align:center;margin:-12px 0 16px">
         <span style="background:var(--accent);color:#fff;font-size:11px;font-weight:700;padding:3px 10px;border-radius:12px">Админ</span>
       </div>
+      <div id="mp-extra" style="margin-bottom:12px"></div>
       <div style="display:flex;gap:8px;margin-top:8px" id="mp-actions"></div>
     </div>
   </div>
@@ -786,8 +813,7 @@ body{margin:0;padding:0;height:100%;font-family:'Manrope',system-ui,sans-serif;f
       <div class="profile-ava" id="prof-ava"></div>
       <div class="profile-name" id="prof-name"></div>
       <div class="profile-handle" id="prof-handle"></div>
-      <div class="profile-phone" id="prof-phone"></div>
-      <div id="prof-role" style="display:none;text-align:center;margin:-12px 0 16px">
+      <div id="prof-role" style="display:none;text-align:center;margin-bottom:16px">
         <span style="background:var(--accent);color:#fff;font-size:11px;font-weight:700;padding:3px 10px;border-radius:12px">Админ</span>
       </div>
 
@@ -798,22 +824,112 @@ body{margin:0;padding:0;height:100%;font-family:'Manrope',system-ui,sans-serif;f
         </div>
       </div>
 
-      <div class="profile-row">
-        <div class="profile-row-label">Тема</div>
-        <div class="theme-select">
-          <button class="theme-opt" data-theme="light" onclick="setTheme('light')">Light</button>
-          <button class="theme-opt" data-theme="dark" onclick="setTheme('dark')">Dark</button>
-          <button class="theme-opt" data-theme="auto" onclick="setTheme('auto')">Auto</button>
+      <div class="prof-section">
+        <div class="prof-section-title">Обо мне</div>
+        <div class="prof-inp-group"><div class="prof-inp-label">Имя</div><input class="inp" id="prof-inp-name" placeholder="Как вас называть" oninput="profChanged()"></div>
+        <div class="prof-inp-group"><div class="prof-inp-label">Телефон</div><input class="inp" id="prof-inp-phone" type="tel" placeholder="+7 ..." oninput="profChanged()"></div>
+        <div class="prof-inp-group"><div class="prof-inp-label">Город</div><input class="inp" id="prof-inp-city" placeholder="Откуда вы" oninput="profChanged()"></div>
+        <div class="prof-inp-group"><div class="prof-inp-label">О себе</div><textarea class="inp" id="prof-inp-bio" rows="2" placeholder="Пару слов о себе" oninput="profChanged()"></textarea></div>
+        <div class="prof-inp-group"><div class="prof-inp-label">Пищевые ограничения</div><input class="inp" id="prof-inp-dietary" placeholder="Аллергии, вегетарианство..." oninput="profChanged()"></div>
+        <button class="prof-save" id="prof-save-btn" onclick="saveProfile()">Сохранить</button>
+      </div>
+
+      <div class="prof-section">
+        <div class="prof-section-title">Настройки</div>
+        <div class="profile-row">
+          <div class="profile-row-label">Тема</div>
+          <div class="theme-select">
+            <button class="theme-opt" data-theme="light" onclick="setTheme('light')">Light</button>
+            <button class="theme-opt" data-theme="dark" onclick="setTheme('dark')">Dark</button>
+            <button class="theme-opt" data-theme="auto" onclick="setTheme('auto')">Auto</button>
+          </div>
+        </div>
+        <div class="profile-row">
+          <div class="profile-row-label">Валюта</div>
+          <select class="inp" id="prof-inp-currency" style="width:auto;padding:6px 10px;font-size:13px" onchange="saveDefCurrency()">
+            <option value="RUB">RUB</option><option value="USD">USD</option><option value="EUR">EUR</option><option value="THB">THB</option><option value="TRY">TRY</option><option value="GEL">GEL</option>
+          </select>
         </div>
       </div>
 
-      <div style="margin-top:20px">
-        <div style="font-size:14px;font-weight:700;margin-bottom:10px">Мои поездки</div>
+      <div class="prof-section">
+        <div class="prof-section-title">Статистика</div>
+        <div class="prof-stats">
+          <div class="prof-stat"><div class="prof-stat-num" id="prof-stat-trips">0</div><div class="prof-stat-label">Поездок</div></div>
+          <div class="prof-stat"><div class="prof-stat-num" id="prof-stat-expenses">0</div><div class="prof-stat-label">Расходов</div></div>
+          <div class="prof-stat"><div class="prof-stat-num" id="prof-stat-total">0</div><div class="prof-stat-label" id="prof-stat-total-label">Потрачено</div></div>
+        </div>
+      </div>
+
+      <div class="prof-section">
+        <div class="prof-section-title">Мои поездки</div>
         <div id="prof-trips"></div>
       </div>
       <button class="btn" id="prof-leave-trip" style="margin-top:12px;background:var(--surface2);color:var(--red);border:1px solid var(--red);display:none" onclick="leaveTrip()">Покинуть поездку</button>
       <button class="btn btn-ghost" style="margin-top:12px" onclick="logout()">Выйти</button>
     </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- ADMIN: PLACE FORM SHEET -->
+<!-- ═══════════════════════════════════════════ -->
+<div class="overlay" id="ov-place">
+  <div class="sheet sheet-full" id="sh-place">
+    <div class="sheet-handle" id="sh-place-handle"></div>
+    <div style="font-size:17px;font-weight:800;text-align:center;margin-bottom:16px" id="place-form-title">Новое место</div>
+
+    <input class="inp" id="place-inp-name" placeholder="Название *" style="margin-bottom:10px">
+    <input class="inp" id="place-inp-addr" placeholder="Адрес" style="margin-bottom:10px">
+
+    <div class="inp-label" style="margin-bottom:6px">Категория</div>
+    <div class="chip-row" id="place-cat-chips" style="margin-bottom:12px;flex-wrap:wrap">
+      <button class="chip on" data-cat="housing" onclick="pickPlaceCat('housing')">🏨 Жилье</button>
+      <button class="chip" data-cat="food" onclick="pickPlaceCat('food')">🍽 Еда</button>
+      <button class="chip" data-cat="sight" onclick="pickPlaceCat('sight')">🏛 Достоприм.</button>
+      <button class="chip" data-cat="transport" onclick="pickPlaceCat('transport')">🚕 Транспорт</button>
+      <button class="chip" data-cat="other" onclick="pickPlaceCat('other')">📦 Другое</button>
+    </div>
+
+    <textarea class="inp" id="place-inp-desc" placeholder="Описание" rows="2" style="margin-bottom:10px;resize:none"></textarea>
+    <input class="inp" id="place-inp-photo" placeholder="Фото URL" style="margin-bottom:10px">
+    <input class="inp" id="place-inp-map" placeholder="Ссылка на карту" style="margin-bottom:10px">
+
+    <div style="display:flex;gap:8px;margin-bottom:10px">
+      <input class="inp" id="place-inp-lat" type="number" inputmode="decimal" placeholder="Широта (lat)" style="flex:1">
+      <input class="inp" id="place-inp-lng" type="number" inputmode="decimal" placeholder="Долгота (lng)" style="flex:1">
+    </div>
+
+    <input class="inp" id="place-inp-sort" type="number" inputmode="numeric" placeholder="Порядок сортировки" style="margin-bottom:16px">
+
+    <button class="btn btn-accent" onclick="savePlace()" style="width:100%">Сохранить</button>
+    <button class="btn" id="place-del-btn" onclick="deletePlace()" style="display:none;width:100%;margin-top:8px;background:var(--red);color:#fff">Удалить</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- ADMIN: EVENT FORM SHEET -->
+<!-- ═══════════════════════════════════════════ -->
+<div class="overlay" id="ov-event">
+  <div class="sheet sheet-full" id="sh-event">
+    <div class="sheet-handle" id="sh-event-handle"></div>
+    <div style="font-size:17px;font-weight:800;text-align:center;margin-bottom:16px" id="event-form-title">Новое событие</div>
+
+    <select class="inp" id="event-inp-day" style="margin-bottom:10px"></select>
+
+    <div style="display:flex;gap:8px;margin-bottom:10px">
+      <input class="inp" id="event-inp-start" type="time" placeholder="Начало" style="flex:1">
+      <input class="inp" id="event-inp-end" type="time" placeholder="Конец" style="flex:1">
+    </div>
+
+    <input class="inp" id="event-inp-title" placeholder="Название *" style="margin-bottom:10px">
+    <textarea class="inp" id="event-inp-desc" placeholder="Описание" rows="2" style="margin-bottom:10px;resize:none"></textarea>
+    <select class="inp" id="event-inp-place" style="margin-bottom:16px">
+      <option value="">-- Без привязки к месту --</option>
+    </select>
+
+    <button class="btn btn-accent" onclick="saveEvent()" style="width:100%">Сохранить</button>
+    <button class="btn" id="event-del-btn" onclick="deleteEvent()" style="display:none;width:100%;margin-top:8px;background:var(--red);color:#fff">Удалить</button>
   </div>
 </div>
 
@@ -1185,11 +1301,18 @@ function toast(msg) {
 /* ═══════════════════════════════════════════
    NAVIGATION
 ═══════════════════════════════════════════ */
+function updateFabs(idx) {
+  const adm = isAdmin();
+  el('fab-expenses').style.display = idx === 3 ? '' : 'none';
+  el('fab-places').style.display = (idx === 1 && adm) ? '' : 'none';
+  el('fab-schedule').style.display = (idx === 0 && adm) ? '' : 'none';
+}
+
 function goTab(idx) {
   S.curTab = idx;
   el('screens').children[idx].scrollIntoView({ behavior:'smooth', inline:'start' });
   document.querySelectorAll('.ni').forEach((b,i) => b.classList.toggle('on', i===idx));
-  el('fab-expenses').style.display = idx === 3 ? '' : 'none';
+  updateFabs(idx);
   if (idx === 0) el('sched-badge').classList.remove('show');
   if (idx === 2) el('msg-badge').classList.remove('show');
 }
@@ -1202,7 +1325,7 @@ el('screens')?.addEventListener('scroll', () => {
   if (idx !== S.curTab) {
     S.curTab = idx;
     document.querySelectorAll('.ni').forEach((b,i) => b.classList.toggle('on', i===idx));
-    el('fab-expenses').style.display = idx === 3 ? '' : 'none';
+    updateFabs(idx);
     if (idx === 0) el('sched-badge').classList.remove('show');
     if (idx === 2) el('msg-badge').classList.remove('show');
   }
@@ -1598,9 +1721,14 @@ async function bootApp() {
   initSheetDrag('sh-member-profile-handle', 'ov-member-profile');
   initSheetDrag('sh-route-handle', 'ov-route-picker');
   initSheetDrag('sh-profile-handle', 'ov-profile');
+  initSheetDrag('sh-place-handle', 'ov-place');
+  initSheetDrag('sh-event-handle', 'ov-event');
 
   // Init pull-to-refresh on each screen
   initPullToRefresh();
+
+  // Show admin FABs if applicable
+  updateFabs(S.curTab);
 }
 
 /* ═══════════════════════════════════════════
@@ -1650,39 +1778,95 @@ async function loadAll() {
 function updateUserUI() {
   const u = S.user;
   if (!u) return;
-  // Nav avatar
+  const me = _members.find(m => m.tg_id === u.tgId);
+  const displayName = (me && me.display_name) || u.name || 'Участник';
   if (u.photo) {
-    el('nav-ava').innerHTML = '<img src="'+u.photo+'" onerror="this.parentElement.textContent=\''+((u.name||'?')[0])+'\'">';
+    el('nav-ava').innerHTML = '<img src="'+u.photo+'" onerror="this.parentElement.textContent=\''+((displayName||'?')[0])+'\'">';
   } else {
-    el('nav-ava').textContent = (u.name||'?')[0].toUpperCase();
+    el('nav-ava').textContent = (displayName||'?')[0].toUpperCase();
   }
-  el('nav-name').textContent = u.name || 'Участник';
+  el('nav-name').textContent = displayName;
 
-  // Profile
   if (u.photo) {
     el('prof-ava').innerHTML = '<img src="'+u.photo+'">';
   } else {
-    el('prof-ava').textContent = (u.name||'?')[0].toUpperCase();
+    el('prof-ava').textContent = (displayName||'?')[0].toUpperCase();
   }
-  el('prof-name').textContent = u.name || 'Участник';
+  el('prof-name').textContent = displayName;
   if (u.username) {
     el('prof-handle').innerHTML = '<a href="https://t.me/'+esc(u.username)+'" target="_blank">@'+esc(u.username)+'</a>';
   } else {
     el('prof-handle').textContent = '';
   }
-  const savedPhone = localStorage.getItem('ot_phone') || '';
-  el('prof-phone').innerHTML = savedPhone
-    ? '<a href="tel:'+esc(savedPhone)+'" style="color:var(--blue);text-decoration:none">'+esc(savedPhone)+'</a> <span style="cursor:pointer;opacity:.5" onclick="editPhone()">&#9998;</span>'
-    : '<span style="cursor:pointer;color:var(--blue)" onclick="editPhone()">+ Добавить телефон</span>';
 
-  const me = _members.find(m => m.tg_id === u.tgId);
   const isAdmin = me && me.role === 'admin';
   el('prof-role').style.display = isAdmin ? '' : 'none';
   el('prof-qr-section').style.display = isAdmin ? '' : 'none';
   if (isAdmin && S.tripId) renderQR();
 }
 
-function showProfile() { openSheet('ov-profile'); loadMyTrips(); }
+let _profTripCount = 0;
+
+function showProfile() {
+  openSheet('ov-profile');
+  loadProfileData();
+  loadMyTrips();
+}
+
+function loadProfileData() {
+  const me = _members.find(m => m.tg_id === S.user.tgId);
+  el('prof-inp-name').value = (me && me.display_name) || S.user.name || '';
+  el('prof-inp-phone').value = (me && me.phone) || localStorage.getItem('ot_phone') || '';
+  el('prof-inp-city').value = (me && me.city) || '';
+  el('prof-inp-bio').value = (me && me.bio) || '';
+  el('prof-inp-dietary').value = (me && me.dietary) || '';
+  el('prof-inp-currency').value = localStorage.getItem('ot_def_currency') || _baseCurrency;
+  el('prof-save-btn').classList.remove('show');
+  updateProfileStats();
+}
+
+function profChanged() {
+  el('prof-save-btn').classList.add('show');
+}
+
+async function saveProfile() {
+  const btn = el('prof-save-btn');
+  btn.textContent = 'Сохранение...';
+  btn.disabled = true;
+  const data = {
+    display_name: el('prof-inp-name').value.trim() || S.user.name || '',
+    phone: el('prof-inp-phone').value.trim(),
+    city: el('prof-inp-city').value.trim(),
+    bio: el('prof-inp-bio').value.trim(),
+    dietary: el('prof-inp-dietary').value.trim()
+  };
+  const ok = await sbPatch('members', 'tg_id=eq.'+S.user.tgId+'&trip_id=eq.'+S.tripId, data);
+  btn.textContent = 'Сохранить';
+  btn.disabled = false;
+  if (ok) {
+    const me = _members.find(m => m.tg_id === S.user.tgId);
+    if (me) Object.assign(me, data);
+    if (localStorage.getItem('ot_phone')) localStorage.removeItem('ot_phone');
+    btn.classList.remove('show');
+    updateUserUI();
+    toast('Профиль сохранен');
+  } else {
+    toast('Ошибка сохранения');
+  }
+}
+
+function saveDefCurrency() {
+  const val = el('prof-inp-currency').value;
+  localStorage.setItem('ot_def_currency', val);
+}
+
+function updateProfileStats() {
+  const myExpenses = _expenses.filter(e => e.paid_by === S.user.tgId && (e.op_type||'expense') !== 'transfer');
+  const total = myExpenses.reduce((s,e) => s + toBase(parseFloat(e.amount), e.currency||'RUB'), 0);
+  el('prof-stat-trips').textContent = _profTripCount || '—';
+  el('prof-stat-expenses').textContent = myExpenses.length;
+  el('prof-stat-total').textContent = total ? fmtMoney(total, _baseCurrency) : '0';
+}
 
 async function loadMyTrips() {
   const container = el('prof-trips');
@@ -1693,9 +1877,13 @@ async function loadMyTrips() {
     if (!memberships || !memberships.length) {
       container.innerHTML = '<div style="color:var(--sub);font-size:13px">Нет поездок</div>';
       el('prof-leave-trip').style.display = 'none';
+      _profTripCount = 0;
+      updateProfileStats();
       return;
     }
     const tripIds = [...new Set(memberships.map(m => m.trip_id))];
+    _profTripCount = tripIds.length;
+    updateProfileStats();
     const trips = await sbGet('trips', 'id=in.('+tripIds.join(',')+')&order=start_date.desc');
     if (!trips || !trips.length) {
       container.innerHTML = '<div style="color:var(--sub);font-size:13px">Нет поездок</div>';
@@ -1748,16 +1936,6 @@ function leaveTrip() {
   );
 }
 
-function editPhone() {
-  const cur = localStorage.getItem('ot_phone') || '';
-  const val = prompt('Номер телефона:', cur);
-  if (val === null) return;
-  const phone = val.trim();
-  if (phone) localStorage.setItem('ot_phone', phone);
-  else localStorage.removeItem('ot_phone');
-  updateUserUI();
-}
-
 function showMembers() {
   const list = el('members-list');
   list.innerHTML = _members.map(m => {
@@ -1803,6 +1981,12 @@ function showMemberProfile(tgId) {
     el('mp-phone').textContent = '';
   }
   el('mp-role').style.display = m.role === 'admin' ? '' : 'none';
+
+  let extra = '';
+  if (m.city) extra += '<div style="font-size:13px;color:var(--sub);text-align:center;margin-bottom:4px">'+esc(m.city)+'</div>';
+  if (m.bio) extra += '<div style="font-size:13px;text-align:center;margin-bottom:4px">'+esc(m.bio)+'</div>';
+  if (m.dietary) extra += '<div style="font-size:12px;color:var(--sub);text-align:center;padding:4px 10px;background:var(--surface2);border-radius:8px;display:inline-block">&#127860; '+esc(m.dietary)+'</div>';
+  el('mp-extra').innerHTML = extra;
 
   let acts = '';
   if (phone) {
@@ -1907,9 +2091,11 @@ function selectDay(date) {
 
 function renderSchedule() {
   el('sched-pdf-btn').style.display = _scheduleEvents.length ? '' : 'none';
+  const adm = isAdmin();
   const events = _scheduleEvents.filter(e => e.day === _selDay);
   if (!events.length) {
-    el('schedule-list').innerHTML = '<div class="empty-wrap"><div class="empty-illustration">📅</div><div class="empty-title">Нет событий</div><div class="empty-sub">На этот день пока ничего не запланировано. Организатор скоро добавит расписание.</div></div>';
+    const msg = adm ? 'Нажмите +, чтобы добавить событие.' : 'На этот день пока ничего не запланировано. Организатор скоро добавит расписание.';
+    el('schedule-list').innerHTML = '<div class="empty-wrap"><div class="empty-illustration">📅</div><div class="empty-title">Нет событий</div><div class="empty-sub">'+msg+'</div></div>';
     return;
   }
   const now = new Date();
@@ -1932,7 +2118,8 @@ function renderSchedule() {
       else if (nowMins >= endMins) { cls += ' past'; }
     }
 
-    return '<div class="'+cls+'"><div class="tl-time">'+time+'</div><div class="tl-body"><div class="tl-title">'+esc(e.title)+nowBadge+'</div>'+(e.description?'<div class="tl-desc">'+esc(e.description)+'</div>':'')+placeHtml+'</div></div>';
+    const editBtn = adm ? '<button class="tl-item-edit" onclick="event.stopPropagation();openEventForm(\''+e.id+'\')">&#9998;</button>' : '';
+    return '<div class="'+cls+'">'+editBtn+'<div class="tl-time">'+time+'</div><div class="tl-body"><div class="tl-title">'+esc(e.title)+nowBadge+'</div>'+(e.description?'<div class="tl-desc">'+esc(e.description)+'</div>':'')+placeHtml+'</div></div>';
   }).join('') + '</div>';
 }
 
@@ -1947,9 +2134,10 @@ function openMap(url) {
 function renderPlaces() {
   el('places-pdf-btn').style.display = _places.length ? '' : 'none';
   renderPlaceFilterTabs();
+  const adm = isAdmin();
   const filtered = _placeFilter === 'all' ? _places : _places.filter(p => p.category === _placeFilter);
   if (!filtered.length) {
-    const msg = _places.length ? 'В этой категории пока нет мест.' : 'Организатор добавит адреса отелей, ресторанов и достопримечательностей.';
+    const msg = _places.length ? 'В этой категории пока нет мест.' : (adm ? 'Нажмите +, чтобы добавить место.' : 'Организатор добавит адреса отелей, ресторанов и достопримечательностей.');
     el('places-list').innerHTML = '<div class="empty-wrap"><div class="empty-illustration">📍</div><div class="empty-title">Нет мест</div><div class="empty-sub">'+msg+'</div></div>';
     return;
   }
@@ -1960,7 +2148,8 @@ function renderPlaces() {
     const desc = p.description ? '<div class="place-desc" id="pd-'+p.id+'">'+esc(p.description)+'</div><button class="place-desc-toggle" data-id="'+p.id+'" style="display:none" onclick="togglePlaceDesc(this)">Ещё</button>' : '';
     const hasRoute = (p.lat && p.lng) || p.address;
     const routeBtn = hasRoute ? '<button class="place-route-btn" onclick="event.stopPropagation();openRoutePicker(\''+p.id+'\')"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg> Маршрут</button>' : '';
-    return '<div class="card place-card">'+photo+'<div class="place-card-body"><div class="place-name">'+esc(p.name)+'</div>'+addr+desc+'<div class="place-footer"><span class="place-cat">'+cat.emoji+' '+cat.label+'</span>'+routeBtn+'</div></div></div>';
+    const editBtn = adm ? '<button class="place-card-edit" onclick="event.stopPropagation();openPlaceForm(\''+p.id+'\')">&#9998;</button>' : '';
+    return '<div class="card place-card">'+editBtn+photo+'<div class="place-card-body"><div class="place-name">'+esc(p.name)+'</div>'+addr+desc+'<div class="place-footer"><span class="place-cat">'+cat.emoji+' '+cat.label+'</span>'+routeBtn+'</div></div></div>';
   }).join('');
   requestAnimationFrame(() => {
     filtered.forEach(p => {
@@ -2013,6 +2202,193 @@ function openRoutePicker(placeId) {
     '<a href="'+esc(o.url)+'" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid var(--border);text-decoration:none;color:var(--text)"><span style="font-size:24px">'+o.icon+'</span><span style="font-size:15px;font-weight:600">'+esc(o.label)+'</span><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--sub)" stroke-width="2" style="margin-left:auto"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>'
   ).join('');
   openSheet('ov-route-picker');
+}
+
+/* ═══════════════════════════════════════════
+   ADMIN: PLACES CRUD
+═══════════════════════════════════════════ */
+let _placeEditId = null;
+let _placeCat = 'housing';
+
+function isAdmin() {
+  const me = _members.find(m => m.tg_id === S.user?.tgId);
+  return me && me.role === 'admin';
+}
+
+function pickPlaceCat(cat) {
+  _placeCat = cat;
+  document.querySelectorAll('#place-cat-chips .chip').forEach(b => b.classList.toggle('on', b.dataset.cat === cat));
+}
+
+function openPlaceForm(placeId) {
+  _placeEditId = placeId || null;
+  el('place-form-title').textContent = _placeEditId ? 'Редактировать место' : 'Новое место';
+  el('place-del-btn').style.display = _placeEditId ? '' : 'none';
+
+  if (_placeEditId) {
+    const p = _places.find(x => x.id === _placeEditId);
+    if (!p) return;
+    el('place-inp-name').value = p.name || '';
+    el('place-inp-addr').value = p.address || '';
+    el('place-inp-desc').value = p.description || '';
+    el('place-inp-photo').value = p.photo_url || '';
+    el('place-inp-map').value = p.map_url || '';
+    el('place-inp-lat').value = p.lat || '';
+    el('place-inp-lng').value = p.lng || '';
+    el('place-inp-sort').value = p.sort_order != null ? p.sort_order : '';
+    pickPlaceCat(p.category || 'other');
+  } else {
+    el('place-inp-name').value = '';
+    el('place-inp-addr').value = '';
+    el('place-inp-desc').value = '';
+    el('place-inp-photo').value = '';
+    el('place-inp-map').value = '';
+    el('place-inp-lat').value = '';
+    el('place-inp-lng').value = '';
+    el('place-inp-sort').value = '';
+    pickPlaceCat('housing');
+  }
+  openSheet('ov-place');
+}
+
+async function savePlace() {
+  const name = el('place-inp-name').value.trim();
+  if (!name) { toast('Введите название'); return; }
+  const data = {
+    name,
+    address: el('place-inp-addr').value.trim() || null,
+    category: _placeCat,
+    description: el('place-inp-desc').value.trim() || null,
+    photo_url: el('place-inp-photo').value.trim() || null,
+    map_url: el('place-inp-map').value.trim() || null,
+    lat: parseFloat(el('place-inp-lat').value) || null,
+    lng: parseFloat(el('place-inp-lng').value) || null,
+    sort_order: parseInt(el('place-inp-sort').value) || 0
+  };
+  if (_placeEditId) {
+    const ok = await sbPatch('places', 'id=eq.' + _placeEditId, data);
+    if (ok) {
+      const idx = _places.findIndex(p => p.id === _placeEditId);
+      if (idx >= 0) Object.assign(_places[idx], data);
+      toast('Место обновлено');
+    } else { toast('Ошибка сохранения'); return; }
+  } else {
+    data.trip_id = S.tripId;
+    const rows = await sbPost('places', data);
+    if (rows && rows[0]) {
+      _places.push(rows[0]);
+      _places.sort((a,b) => (a.sort_order||0) - (b.sort_order||0));
+      toast('Место добавлено');
+    } else { toast('Ошибка создания'); return; }
+  }
+  renderPlaces();
+  closeSheet('ov-place');
+}
+
+async function deletePlace() {
+  if (!_placeEditId) return;
+  showConfirm('Удалить место?', 'Это действие нельзя отменить.', async () => {
+    const ok = await sbDelete('places', 'id=eq.' + _placeEditId);
+    if (ok) {
+      _places = _places.filter(p => p.id !== _placeEditId);
+      toast('Место удалено');
+      renderPlaces();
+      closeSheet('ov-place');
+    } else { toast('Ошибка удаления'); }
+  });
+}
+
+/* ═══════════════════════════════════════════
+   ADMIN: SCHEDULE CRUD
+═══════════════════════════════════════════ */
+let _eventEditId = null;
+
+function populateEventDaySelect() {
+  const sel = el('event-inp-day');
+  sel.innerHTML = _tripDays.map(d => {
+    const date = d.date || d;
+    const label = d.label || date;
+    return '<option value="'+date+'"' + (date === _selDay ? ' selected' : '') + '>' + label + '</option>';
+  }).join('');
+}
+
+function populateEventPlaceSelect() {
+  const sel = el('event-inp-place');
+  sel.innerHTML = '<option value="">-- Без привязки к месту --</option>' +
+    _places.map(p => '<option value="'+p.id+'">'+esc(p.name)+'</option>').join('');
+}
+
+function openEventForm(eventId) {
+  _eventEditId = eventId || null;
+  el('event-form-title').textContent = _eventEditId ? 'Редактировать событие' : 'Новое событие';
+  el('event-del-btn').style.display = _eventEditId ? '' : 'none';
+  populateEventDaySelect();
+  populateEventPlaceSelect();
+
+  if (_eventEditId) {
+    const e = _scheduleEvents.find(x => x.id === _eventEditId);
+    if (!e) return;
+    el('event-inp-day').value = e.day || '';
+    el('event-inp-start').value = (e.time_start || '').slice(0, 5);
+    el('event-inp-end').value = (e.time_end || '').slice(0, 5);
+    el('event-inp-title').value = e.title || '';
+    el('event-inp-desc').value = e.description || '';
+    el('event-inp-place').value = e.place_id || '';
+  } else {
+    el('event-inp-day').value = _selDay || '';
+    el('event-inp-start').value = '';
+    el('event-inp-end').value = '';
+    el('event-inp-title').value = '';
+    el('event-inp-desc').value = '';
+    el('event-inp-place').value = '';
+  }
+  openSheet('ov-event');
+}
+
+async function saveEvent() {
+  const title = el('event-inp-title').value.trim();
+  const day = el('event-inp-day').value;
+  if (!title) { toast('Введите название'); return; }
+  if (!day) { toast('Выберите день'); return; }
+  const data = {
+    title,
+    day,
+    time_start: el('event-inp-start').value || null,
+    time_end: el('event-inp-end').value || null,
+    description: el('event-inp-desc').value.trim() || null,
+    place_id: el('event-inp-place').value || null
+  };
+  if (_eventEditId) {
+    const ok = await sbPatch('schedule', 'id=eq.' + _eventEditId, data);
+    if (ok) {
+      const idx = _scheduleEvents.findIndex(e => e.id === _eventEditId);
+      if (idx >= 0) Object.assign(_scheduleEvents[idx], data);
+      toast('Событие обновлено');
+    } else { toast('Ошибка сохранения'); return; }
+  } else {
+    data.trip_id = S.tripId;
+    const rows = await sbPost('schedule', data);
+    if (rows && rows[0]) {
+      _scheduleEvents.push(rows[0]);
+      _scheduleEvents.sort((a,b) => (a.time_start||'').localeCompare(b.time_start||''));
+      toast('Событие добавлено');
+    } else { toast('Ошибка создания'); return; }
+  }
+  renderSchedule();
+  closeSheet('ov-event');
+}
+
+async function deleteEvent() {
+  if (!_eventEditId) return;
+  showConfirm('Удалить событие?', 'Это действие нельзя отменить.', async () => {
+    const ok = await sbDelete('schedule', 'id=eq.' + _eventEditId);
+    if (ok) {
+      _scheduleEvents = _scheduleEvents.filter(e => e.id !== _eventEditId);
+      toast('Событие удалено');
+      renderSchedule();
+      closeSheet('ov-event');
+    } else { toast('Ошибка удаления'); }
+  });
 }
 
 /* ═══════════════════════════════════════════
@@ -2477,9 +2853,9 @@ function showAddOperation(editId) {
     el('exp-form-sub').style.display = 'none';
     el('exp-inp-desc').value = '';
     el('exp-inp-amount').value = '';
-    el('exp-inp-currency').value = _baseCurrency;
+    el('exp-inp-currency').value = localStorage.getItem('ot_def_currency') || _baseCurrency;
     el('exp-tr-amount').value = '';
-    el('exp-tr-currency').value = _baseCurrency;
+    el('exp-tr-currency').value = localStorage.getItem('ot_def_currency') || _baseCurrency;
   }
 
   renderOpTypeChips();
