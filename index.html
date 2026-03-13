@@ -519,6 +519,7 @@ body{margin:0;padding:0;height:100%;font-family:'Manrope',system-ui,sans-serif;f
           <div class="page-hdr-title">Расписание</div>
           <div style="display:flex;gap:8px">
             <button id="sched-pdf-btn" onclick="exportSchedulePDF()" style="display:none;background:none;border:none;cursor:pointer;padding:6px;color:var(--sub)"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>
+            <button onclick="openTripForm()" title="Создать поездку" style="background:none;border:none;cursor:pointer;padding:6px;color:var(--sub)"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg></button>
             <button class="theme-btn" onclick="cycleTheme()" id="theme-ico"></button>
             <div class="user-pill" onclick="showProfile()">
               <div class="user-ava" id="nav-ava"></div>
@@ -930,6 +931,31 @@ body{margin:0;padding:0;height:100%;font-family:'Manrope',system-ui,sans-serif;f
 
     <button class="btn btn-accent" onclick="saveEvent()" style="width:100%">Сохранить</button>
     <button class="btn" id="event-del-btn" onclick="deleteEvent()" style="display:none;width:100%;margin-top:8px;background:var(--red);color:#fff">Удалить</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- CREATE TRIP SHEET -->
+<!-- ═══════════════════════════════════════════ -->
+<div class="overlay" id="ov-trip">
+  <div class="sheet sheet-full" id="sh-trip">
+    <div class="sheet-handle" id="sh-trip-handle"></div>
+    <div style="font-size:17px;font-weight:800;text-align:center;margin-bottom:16px">Новая поездка</div>
+
+    <input class="inp" id="trip-inp-name" placeholder="Название поездки *" style="margin-bottom:10px">
+
+    <div class="inp-label" style="margin-bottom:6px">Дата начала *</div>
+    <input class="inp" id="trip-inp-start" type="date" style="margin-bottom:10px">
+
+    <div class="inp-label" style="margin-bottom:6px">Дата окончания</div>
+    <input class="inp" id="trip-inp-end" type="date" style="margin-bottom:10px">
+
+    <div class="inp-label" style="margin-bottom:6px">Базовая валюта</div>
+    <div class="chip-row" id="trip-cur-chips" style="margin-bottom:12px;flex-wrap:wrap"></div>
+
+    <textarea class="inp" id="trip-inp-desc" placeholder="Описание" rows="2" style="margin-bottom:16px;resize:none"></textarea>
+
+    <button class="btn btn-accent" onclick="createTrip()" style="width:100%">Создать</button>
   </div>
 </div>
 
@@ -1529,13 +1555,15 @@ async function showNoTripScreen() {
         const dates = t.start_date ? (t.start_date + (t.end_date ? ' — ' + t.end_date : '')) : '';
         return '<button class="btn btn-accent" onclick="joinExistingUserToTrip(\''+t.id+'\')" style="width:100%;max-width:320px;margin-bottom:8px">' + esc(t.name || 'Поездка') + (dates ? '<br><span style="font-size:12px;font-weight:400;opacity:.8">' + esc(dates) + '</span>' : '') + '</button>';
       }).join('')
-      + '<div style="margin-top:16px"><button class="btn btn-ghost btn-sm" onclick="openQRScanner()" style="width:auto;margin-bottom:8px">Сканировать QR-код</button></div>'
+      + '<button class="btn" onclick="openTripForm()" style="width:100%;max-width:320px;margin-top:12px;margin-bottom:8px">+ Создать поездку</button>'
+      + '<div style="margin-top:8px"><button class="btn btn-ghost btn-sm" onclick="openQRScanner()" style="width:auto;margin-bottom:8px">Сканировать QR-код</button></div>'
       + '<button class="btn btn-ghost btn-sm" onclick="logout()" style="width:auto">Выйти</button>';
   } else {
     scr.innerHTML = '<div style="font-size:48px;margin-bottom:16px">&#127890;</div>'
       + '<div style="font-size:20px;font-weight:800;color:var(--text);margin-bottom:8px">Нет активной поездки</div>'
-      + '<div style="font-size:14px;color:var(--sub);line-height:1.5;max-width:280px;margin-bottom:24px">Попроси организатора показать QR-код и отсканируй его</div>'
-      + '<button class="btn btn-accent" onclick="openQRScanner()" style="width:auto;margin-bottom:12px"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#fff" stroke-width="2" style="margin-right:6px"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>Сканировать QR-код</button>'
+      + '<div style="font-size:14px;color:var(--sub);line-height:1.5;max-width:280px;margin-bottom:24px">Создай свою поездку или отсканируй QR-код организатора</div>'
+      + '<button class="btn btn-accent" onclick="openTripForm()" style="width:auto;margin-bottom:12px">+ Создать поездку</button>'
+      + '<button class="btn btn-ghost btn-sm" onclick="openQRScanner()" style="width:auto;margin-bottom:8px">Сканировать QR-код</button>'
       + '<button class="btn btn-ghost btn-sm" onclick="logout()" style="width:auto">Выйти</button>';
   }
 
@@ -1723,6 +1751,7 @@ async function bootApp() {
   initSheetDrag('sh-profile-handle', 'ov-profile');
   initSheetDrag('sh-place-handle', 'ov-place');
   initSheetDrag('sh-event-handle', 'ov-event');
+  initSheetDrag('sh-trip-handle', 'ov-trip');
 
   // Init pull-to-refresh on each screen
   initPullToRefresh();
@@ -1875,7 +1904,8 @@ async function loadMyTrips() {
   try {
     const memberships = await sbGet('members', 'tg_id=eq.'+S.user.tgId+'&select=trip_id');
     if (!memberships || !memberships.length) {
-      container.innerHTML = '<div style="color:var(--sub);font-size:13px">Нет поездок</div>';
+      container.innerHTML = '<div style="color:var(--sub);font-size:13px;margin-bottom:8px">Нет поездок</div>'
+        + '<button class="btn btn-ghost btn-sm" onclick="openTripForm()" style="width:100%">+ Создать поездку</button>';
       el('prof-leave-trip').style.display = 'none';
       _profTripCount = 0;
       updateProfileStats();
@@ -1900,7 +1930,8 @@ async function loadMyTrips() {
         '</div>'+
         (isCurrent?'<div class="trip-item-badge">Текущая</div>':'')+
       '</div>';
-    }).join('');
+    }).join('')
+      + '<button class="btn btn-ghost btn-sm" onclick="openTripForm()" style="width:100%;margin-top:8px">+ Создать поездку</button>';
     el('prof-leave-trip').style.display = S.tripId ? '' : 'none';
   } catch(e) {
     container.innerHTML = '<div style="color:var(--sub);font-size:13px">Ошибка загрузки</div>';
@@ -2389,6 +2420,66 @@ async function deleteEvent() {
       closeSheet('ov-event');
     } else { toast('Ошибка удаления'); }
   });
+}
+
+/* ═══════════════════════════════════════════
+   CREATE TRIP
+═══════════════════════════════════════════ */
+let _tripCur = 'RUB';
+let _tripSheetInited = false;
+
+function openTripForm() {
+  if (!_tripSheetInited) { initSheetDrag('sh-trip-handle', 'ov-trip'); _tripSheetInited = true; }
+  el('trip-inp-name').value = '';
+  el('trip-inp-start').value = new Date().toISOString().slice(0,10);
+  el('trip-inp-end').value = '';
+  el('trip-inp-desc').value = '';
+  _tripCur = 'RUB';
+  const chips = el('trip-cur-chips');
+  chips.innerHTML = Object.entries(CUR_SYM).map(([code, sym]) =>
+    '<button class="chip'+(code==='RUB'?' on':'')+'" data-cur="'+code+'" onclick="pickTripCur(\''+code+'\')">'+sym+' '+code+'</button>'
+  ).join('');
+  openSheet('ov-trip');
+}
+
+function pickTripCur(cur) {
+  _tripCur = cur;
+  el('trip-cur-chips').querySelectorAll('.chip').forEach(b => b.classList.toggle('on', b.dataset.cur === cur));
+}
+
+async function createTrip() {
+  const name = el('trip-inp-name').value.trim();
+  const startDate = el('trip-inp-start').value;
+  const endDate = el('trip-inp-end').value || null;
+  const desc = el('trip-inp-desc').value.trim() || null;
+  if (!name) { toast('Введите название'); return; }
+  if (!startDate) { toast('Укажите дату начала'); return; }
+  const tripData = { name, start_date: startDate, base_currency: _tripCur };
+  if (endDate) tripData.end_date = endDate;
+  if (desc) tripData.description = desc;
+  const trips = await sbPost('trips', tripData);
+  if (!trips || !trips.length) { toast('Ошибка создания поездки'); return; }
+  const tripId = trips[0].id;
+  await sbPost('members', {
+    trip_id: tripId,
+    tg_id: S.user.tgId,
+    tg_name: S.user.name,
+    tg_username: S.user.username || '',
+    tg_photo: S.user.photo || '',
+    display_name: S.user.name,
+    role: 'admin',
+    joined_at: new Date().toISOString()
+  });
+  S.tripId = tripId;
+  S.user.tripId = tripId;
+  localStorage.setItem('ot_trip', tripId);
+  localStorage.setItem('ot_user', JSON.stringify(S.user));
+  closeSheet('ov-trip');
+  const noTrip = el('no-trip-screen');
+  if (noTrip) noTrip.style.display = 'none';
+  el('app-wrap').style.display = '';
+  toast('Поездка создана!');
+  bootApp();
 }
 
 /* ═══════════════════════════════════════════
