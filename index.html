@@ -602,6 +602,18 @@ body{margin:0;padding:0;height:100%;font-family:'Manrope',system-ui,sans-serif;f
 
       </div>
     </div>
+
+    <!-- TAB 4: MEMBERS -->
+    <div class="screen" id="scr-4">
+      <div class="page-hdr">
+        <div class="page-hdr-title" id="members-tab-title">Участники</div>
+        <div style="display:flex;gap:2px;align-items:center">
+          <button onclick="openTripForm()" title="Создать поездку" style="background:none;border:none;cursor:pointer;padding:6px;color:var(--sub)"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg></button>
+          <button class="theme-btn" onclick="toggleTheme()">🌙</button>
+        </div>
+      </div>
+      <div id="members-tab-list" style="padding:0 12px 120px"></div>
+    </div>
   </div>
 
   <div class="fab-wrap" id="fab-expenses" style="display:none">
@@ -636,6 +648,10 @@ body{margin:0;padding:0;height:100%;font-family:'Manrope',system-ui,sans-serif;f
     <button class="ni" onclick="goTab(3)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
       <span>Расходы</span>
+    </button>
+    <button class="ni" onclick="goTab(4)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+      <span>Участники</span>
     </button>
   </div>
 </div>
@@ -787,7 +803,28 @@ body{margin:0;padding:0;height:100%;font-family:'Manrope',system-ui,sans-serif;f
         <span style="background:var(--accent);color:#fff;font-size:11px;font-weight:700;padding:3px 10px;border-radius:12px">Админ</span>
       </div>
       <div id="mp-extra" style="margin-bottom:12px"></div>
-      <div style="display:flex;gap:8px;margin-top:8px" id="mp-actions"></div>
+      <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap" id="mp-actions"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- DOCUMENTS SHEET -->
+<!-- ═══════════════════════════════════════════ -->
+<div class="overlay" id="ov-docs">
+  <div class="sheet sheet-full" id="sh-docs">
+    <div class="sheet-handle" id="sh-docs-handle"></div>
+    <div class="sheet-title" style="text-align:center" id="docs-title">Документы</div>
+    <div id="docs-list" style="margin-bottom:12px"></div>
+    <div id="docs-upload-section" style="display:none">
+      <input class="inp" id="doc-inp-name" placeholder="Название документа *" style="margin-bottom:8px">
+      <div class="chip-row" id="doc-type-chips" style="margin-bottom:8px;flex-wrap:wrap"></div>
+      <div id="doc-preview" style="display:none;margin-bottom:8px;text-align:center">
+        <img id="doc-preview-img" style="max-height:160px;border-radius:8px;border:1px solid var(--border)">
+      </div>
+      <input type="file" id="doc-file-input" accept="image/*,.pdf" style="display:none" onchange="onDocFileSelected(this)">
+      <button class="btn btn-ghost" onclick="el('doc-file-input').click()" style="width:100%;margin-bottom:8px">Выбрать файл</button>
+      <button class="btn btn-accent" onclick="uploadDoc()" style="width:100%">Загрузить</button>
     </div>
   </div>
 </div>
@@ -1729,11 +1766,13 @@ async function bootApp() {
     loadPlaces(),
     loadMessages(),
     loadExpenses(),
+    loadDocs(),
     ensureRates()
   ]);
 
   // Update UI with loaded member roles
   updateUserUI();
+  renderMembersTab();
 
   // Sync queued operations if online
   if (navigator.onLine) syncQueue();
@@ -1752,6 +1791,7 @@ async function bootApp() {
   initSheetDrag('sh-place-handle', 'ov-place');
   initSheetDrag('sh-event-handle', 'ov-event');
   initSheetDrag('sh-trip-handle', 'ov-trip');
+  initSheetDrag('sh-docs-handle', 'ov-docs');
 
   // Init pull-to-refresh on each screen
   initPullToRefresh();
@@ -2028,6 +2068,12 @@ function showMemberProfile(tgId) {
   }
   if (!isMe) {
     acts += '<button class="btn btn-accent" style="flex:1;gap:4px" onclick="closeSheet(\'ov-member-profile\');closeSheet(\'ov-members\');goTab(2);setTimeout(()=>{el(\'chat-input\').focus()},400)"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#fff" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg> Написать</button>';
+  }
+  acts += '<button class="btn btn-ghost" style="flex:1;gap:4px" onclick="openDocs(\''+m.tg_id+'\')">📎 Документы</button>';
+  if (isAdmin() && !isMe) {
+    const newRole = m.role === 'admin' ? 'member' : 'admin';
+    const label = m.role === 'admin' ? 'Снять админа' : 'Назначить админом';
+    acts += '<button class="btn btn-ghost" style="flex:1;gap:4px;font-size:12px" onclick="toggleMemberRole(\''+m.tg_id+'\',\''+newRole+'\')">'+label+'</button>';
   }
   el('mp-actions').innerHTML = acts;
   openSheet('ov-member-profile');
@@ -2480,6 +2526,211 @@ async function createTrip() {
   el('app-wrap').style.display = '';
   toast('Поездка создана!');
   bootApp();
+}
+
+/* ═══════════════════════════════════════════
+   MEMBERS TAB & DOCUMENTS
+   ═══════════════════════════════════════════ */
+
+let _docs = [];
+let _docFile = null;
+let _docType = 'ticket';
+let _docOwnerId = null;
+
+const DOC_TYPES = { ticket:'Билет', passport:'Паспорт', insurance:'Страховка', visa:'Виза', other:'Другое' };
+
+function docIcon(type) {
+  const icons = { ticket:'🎫', passport:'🛂', insurance:'🏥', visa:'📋', other:'📄' };
+  return icons[type] || '📄';
+}
+
+async function loadDocs() {
+  _docs = await sbGet('documents', 'trip_id=eq.'+S.tripId+'&order=created_at.desc') || [];
+}
+
+function renderMembersTab() {
+  const list = el('members-tab-list');
+  if (!_members.length) {
+    list.innerHTML = '<div style="text-align:center;color:var(--sub);padding:40px 0">Нет участников</div>';
+    return;
+  }
+  list.innerHTML = _members.map(m => {
+    const name = m.display_name || m.tg_name || '?';
+    const isMe = m.tg_id === S.user?.tgId;
+    const color = avaColor(m.tg_id);
+    const ava = m.tg_photo
+      ? '<img src="'+esc(m.tg_photo)+'" onerror="this.parentElement.textContent=\''+avaInitial(name)+'\'">'
+      : avaInitial(name);
+    const roleBadge = m.role === 'admin'
+      ? ' <span style="font-size:10px;background:var(--accent);color:#fff;padding:1px 6px;border-radius:8px;font-weight:700">Админ</span>'
+      : '';
+    const city = m.city ? '<div style="font-size:12px;color:var(--sub)">'+esc(m.city)+'</div>' : '';
+    const docCount = _docs.filter(d => String(d.tg_id) === String(m.tg_id)).length;
+    const docBadge = docCount > 0
+      ? ' <span style="font-size:10px;color:var(--sub);margin-left:4px">📎 '+docCount+'</span>'
+      : '';
+    return '<div class="card member-card" onclick="showMemberProfile(\''+m.tg_id+'\')">'
+      +'<div class="member-ava" style="background:'+color+'">'+ava+'</div>'
+      +'<div class="member-info">'
+      +'<div class="member-name">'+esc(name)+(isMe?' <span style="color:var(--sub);font-weight:400;font-size:12px">(я)</span>':'')+roleBadge+docBadge+'</div>'
+      +'<div class="member-handle">'+city+'</div>'
+      +'</div>'
+      +'</div>';
+  }).join('');
+  el('members-tab-title').textContent = 'Участники (' + _members.length + ')';
+}
+
+async function toggleMemberRole(tgId, newRole) {
+  const ok = await sbPatch('members', 'tg_id=eq.'+tgId+'&trip_id=eq.'+S.tripId, { role: newRole });
+  if (ok) {
+    const m = _members.find(x => String(x.tg_id) === String(tgId));
+    if (m) m.role = newRole;
+    toast(newRole === 'admin' ? 'Назначен админом' : 'Роль изменена');
+    closeSheet('ov-member-profile');
+    renderMembersTab();
+  } else {
+    toast('Ошибка');
+  }
+}
+
+function openDocs(tgId) {
+  _docOwnerId = tgId;
+  _docFile = null;
+  el('doc-preview').style.display = 'none';
+  el('doc-inp-name').value = '';
+  el('doc-file-input').value = '';
+
+  const m = _members.find(x => String(x.tg_id) === String(tgId));
+  const name = m ? (m.display_name || m.tg_name) : '';
+  el('docs-title').textContent = 'Документы' + (name ? ' — ' + name : '');
+
+  const canUpload = String(tgId) === String(S.user?.tgId) || isAdmin();
+  el('docs-upload-section').style.display = canUpload ? '' : 'none';
+
+  el('doc-type-chips').innerHTML = Object.entries(DOC_TYPES).map(([key, label]) =>
+    '<button class="chip'+(key === 'ticket' ? ' on' : '')+'" data-doc-type="'+key+'" onclick="pickDocType(\''+key+'\')">'+label+'</button>'
+  ).join('');
+  _docType = 'ticket';
+
+  renderDocsList(tgId);
+  openSheet('ov-docs');
+}
+
+function renderDocsList(tgId) {
+  const myDocs = _docs.filter(d => String(d.tg_id) === String(tgId));
+  const canDelete = String(tgId) === String(S.user?.tgId) || isAdmin();
+  if (!myDocs.length) {
+    el('docs-list').innerHTML = '<div style="text-align:center;color:var(--sub);padding:20px 0;font-size:13px">Нет документов</div>';
+    return;
+  }
+  el('docs-list').innerHTML = myDocs.map(d => {
+    const typeName = DOC_TYPES[d.doc_type] || d.doc_type;
+    const delBtn = canDelete
+      ? '<button class="btn btn-ghost btn-sm" style="color:var(--red);padding:4px 8px" onclick="event.stopPropagation();deleteDoc(\''+d.id+'\')">✕</button>'
+      : '';
+    return '<div class="card" style="padding:10px 14px;margin-bottom:6px;display:flex;align-items:center;gap:10px;cursor:pointer" onclick="viewDoc(\''+d.id+'\')">'
+      +'<div style="font-size:20px">'+docIcon(d.doc_type)+'</div>'
+      +'<div style="flex:1;min-width:0">'
+      +'<div style="font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(d.name)+'</div>'
+      +'<div style="font-size:11px;color:var(--sub)">'+typeName+'</div>'
+      +'</div>'
+      +'<a class="btn btn-ghost btn-sm" style="padding:4px 8px" href="'+d.file_data+'" download="'+esc(d.name)+'" onclick="event.stopPropagation()">⬇</a>'
+      +delBtn
+      +'</div>';
+  }).join('');
+}
+
+function pickDocType(type) {
+  _docType = type;
+  el('doc-type-chips').querySelectorAll('.chip').forEach(b =>
+    b.classList.toggle('on', b.dataset.docType === type)
+  );
+}
+
+function onDocFileSelected(input) {
+  if (!input.files || !input.files[0]) return;
+  _docFile = input.files[0];
+  if (_docFile.type.startsWith('image/')) {
+    const reader = new FileReader();
+    reader.onload = e => {
+      el('doc-preview-img').src = e.target.result;
+      el('doc-preview').style.display = '';
+    };
+    reader.readAsDataURL(_docFile);
+  } else {
+    el('doc-preview').style.display = 'none';
+  }
+  if (!el('doc-inp-name').value) {
+    el('doc-inp-name').value = _docFile.name.replace(/\.[^.]+$/, '');
+  }
+}
+
+async function uploadDoc() {
+  const name = el('doc-inp-name').value.trim();
+  if (!name) { toast('Введите название'); return; }
+  if (!_docFile) { toast('Выберите файл'); return; }
+
+  const dataUrl = await new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (_docFile.type.startsWith('image/')) {
+        const img = new Image();
+        img.onload = () => {
+          const MAX = 1200;
+          let w = img.width, h = img.height;
+          if (w > MAX) { h = h * MAX / w; w = MAX; }
+          const cvs = document.createElement('canvas');
+          cvs.width = w; cvs.height = h;
+          cvs.getContext('2d').drawImage(img, 0, 0, w, h);
+          resolve(cvs.toDataURL('image/jpeg', 0.8));
+        };
+        img.src = reader.result;
+      } else {
+        resolve(reader.result);
+      }
+    };
+    reader.readAsDataURL(_docFile);
+  });
+
+  const doc = { trip_id: S.tripId, tg_id: _docOwnerId, name, doc_type: _docType, file_data: dataUrl };
+  const res = await sbPost('documents', doc);
+  if (res && res.length) {
+    _docs.unshift(res[0]);
+    renderDocsList(_docOwnerId);
+    renderMembersTab();
+    el('doc-inp-name').value = '';
+    el('doc-preview').style.display = 'none';
+    el('doc-file-input').value = '';
+    _docFile = null;
+    toast('Документ загружен');
+  } else {
+    toast('Ошибка загрузки');
+  }
+}
+
+function viewDoc(id) {
+  const d = _docs.find(x => x.id === id);
+  if (!d) return;
+  const w = window.open('');
+  if (w) {
+    if (d.file_data.startsWith('data:image')) {
+      w.document.write('<img src="'+d.file_data+'" style="max-width:100%;height:auto">');
+    } else {
+      w.document.write('<iframe src="'+d.file_data+'" style="width:100%;height:100%;border:none"></iframe>');
+    }
+    w.document.title = d.name;
+  }
+}
+
+async function deleteDoc(id) {
+  if (!confirm('Удалить документ?')) return;
+  const ok = await sbDelete('documents', 'id=eq.'+id);
+  if (ok) {
+    _docs = _docs.filter(d => d.id !== id);
+    renderDocsList(_docOwnerId);
+    renderMembersTab();
+    toast('Документ удален');
+  }
 }
 
 /* ═══════════════════════════════════════════
