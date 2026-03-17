@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Offline.Travel Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f5f5f0;--surface:#fff;--surface2:#ebebeb;--border:#e0e0e0;--text:#0a0a0a;--sub:#666;--accent:#e8853d;--accent-bg:#fef3ea;--green:#1a9e6b;--red:#d93025;--r:10px}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Manrope',system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:14px;padding:16px;max-width:800px;margin:0 auto}
+h1{font-size:22px;font-weight:800;margin-bottom:4px}
+h2{font-size:16px;font-weight:800;margin:24px 0 12px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+.login-wrap{max-width:320px;margin:80px auto;text-align:center}
+.login-wrap input{width:100%;padding:12px;border:1.5px solid var(--border);border-radius:var(--r);font-size:16px;font-family:inherit;margin:12px 0}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:10px 18px;border:none;border-radius:var(--r);font-family:inherit;font-size:13px;font-weight:700;cursor:pointer}
+.btn:active{opacity:.7}
+.btn-primary{background:var(--text);color:#fff}
+.btn-accent{background:var(--accent);color:#fff}
+.btn-red{background:var(--red);color:#fff}
+.btn-green{background:var(--green);color:#fff}
+.btn-ghost{background:var(--surface);border:1px solid var(--border);color:var(--text)}
+.btn-sm{padding:6px 12px;font-size:12px}
+table{width:100%;border-collapse:collapse;background:var(--surface);border-radius:var(--r);overflow:hidden;border:1px solid var(--border)}
+th{text-align:left;padding:10px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--sub);background:var(--bg);border-bottom:1px solid var(--border)}
+td{padding:8px 12px;border-bottom:1px solid var(--border);font-size:13px;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+.tabs{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+.tab{padding:8px 16px;border-radius:20px;border:1.5px solid var(--border);background:none;font-family:inherit;font-size:13px;font-weight:700;color:var(--sub);cursor:pointer}
+.tab.on{background:var(--text);border-color:var(--text);color:#fff}
+.stat-row{display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+.stat-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:12px 16px;flex:1;min-width:120px}
+.stat-val{font-size:20px;font-weight:800}
+.stat-lbl{font-size:11px;color:var(--sub)}
+input.field,select.field,textarea.field{width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--r);font-size:14px;font-family:inherit;margin-bottom:10px;background:var(--surface);color:var(--text);outline:none}
+textarea.field{min-height:80px;resize:vertical}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.form-label{font-size:11px;font-weight:700;color:var(--sub);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+.form-group{margin-bottom:4px}
+.toast{position:fixed;top:12px;left:50%;transform:translateX(-50%);background:var(--text);color:#fff;padding:10px 20px;border-radius:20px;font-size:13px;font-weight:600;z-index:99;animation:fadeIn .2s ease,fadeOut .2s ease 2s forwards}
+@keyframes fadeIn{from{opacity:0;transform:translateX(-50%) translateY(-8px)}to{opacity:1;transform:translateX(-50%)}}
+@keyframes fadeOut{to{opacity:0;transform:translateX(-50%) translateY(-8px)}}
+.qr-wrap{text-align:center;padding:20px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);margin-bottom:16px}
+.qr-wrap svg{margin:0 auto}
+.empty{text-align:center;color:var(--sub);padding:24px}
+#admin{display:none}
+.badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700}
+.badge-green{background:#edf7f3;color:var(--green)}
+.badge-accent{background:var(--accent-bg);color:var(--accent)}
+</style>
+</head>
+<body>
+
+<div id="login" class="login-wrap">
+  <div style="font-size:40px;margin-bottom:12px">🚂</div>
+  <h1>Offline.Travel Admin</h1>
+  <p style="color:var(--sub);margin-bottom:16px">Панель организатора</p>
+  <input type="password" id="pwd" placeholder="Пароль" onkeydown="if(event.key==='Enter')tryLogin()">
+  <button class="btn btn-primary" style="width:100%" onclick="tryLogin()">Войти</button>
+</div>
+
+<div id="admin">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+    <h1>🚂 Offline.Travel</h1>
+    <button class="btn btn-ghost btn-sm" onclick="location.reload()">Обновить</button>
+  </div>
+  <div class="stat-row" id="stats"></div>
+
+  <div class="tabs">
+    <button class="tab on" onclick="switchTab('qr',this)">QR-код</button>
+    <button class="tab" onclick="switchTab('schedule',this)">Расписание</button>
+    <button class="tab" onclick="switchTab('places',this)">Места</button>
+    <button class="tab" onclick="switchTab('messages',this)">Сообщения</button>
+    <button class="tab" onclick="switchTab('members',this)">Участники</button>
+    <button class="tab" onclick="switchTab('expenses',this)">Расходы</button>
+  </div>
+
+  <div id="panel-qr"></div>
+  <div id="panel-schedule" style="display:none"></div>
+  <div id="panel-places" style="display:none"></div>
+  <div id="panel-messages" style="display:none"></div>
+  <div id="panel-members" style="display:none"></div>
+  <div id="panel-expenses" style="display:none"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
+<script>
+const SB_URL = 'https://ylfxjduenbvjmfbqrfzc.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlsZnhqZHVlbmJ2am1mYnFyZnpjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMyMjQ2NjcsImV4cCI6MjA4ODgwMDY2N30.aMCyh1wOm_s86aG2uMS5rlDTpmPYl_RwgdDcLSFn6_Q';
+const HDR = { 'Content-Type':'application/json', 'apikey':SB_KEY, 'Authorization':'Bearer '+SB_KEY };
+const ADMIN_PASS = 'offlinetravel2026';
+const TRIP_ID = 'f02cff82-d69f-45df-a8a2-c8f43638c65a';
+
+let _members=[], _events=[], _places=[], _messages=[], _expenses=[], _splits=[], _settlements=[];
+let _baseCurrency='RUB';
+
+function el(id) { return document.getElementById(id); }
+function toast(msg) { const t=document.createElement('div'); t.className='toast'; t.textContent=msg; document.body.appendChild(t); setTimeout(()=>t.remove(),2500); }
+function esc(s) { return s ? String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') : ''; }
+function pad(n) { return String(n).padStart(2,'0'); }
+const CUR_SYM={RUB:'₽',USD:'$',EUR:'€',THB:'฿',TRY:'₺',GEL:'₾'};
+function fmtMoney(n,cur) { return Math.round(n).toLocaleString('ru-RU')+' '+(CUR_SYM[cur||'RUB']||'₽'); }
+
+async function sbGet(table, q='') { const r=await fetch(`${SB_URL}/rest/v1/${table}?${q}`,{headers:HDR}); return r.ok?r.json():[]; }
+async function sbPost(table, data) { const r=await fetch(`${SB_URL}/rest/v1/${table}`,{method:'POST',headers:{...HDR,'Prefer':'return=representation'},body:JSON.stringify(data)}); return r.ok?r.json():null; }
+async function sbPatch(table, q, data) { return (await fetch(`${SB_URL}/rest/v1/${table}?${q}`,{method:'PATCH',headers:{...HDR,'Prefer':'return=minimal'},body:JSON.stringify(data)})).ok; }
+async function sbDelete(table, q) { return (await fetch(`${SB_URL}/rest/v1/${table}?${q}`,{method:'DELETE',headers:{...HDR,'Prefer':'return=minimal'}})).ok; }
+
+function tryLogin() {
+  if (el('pwd').value === ADMIN_PASS) { el('login').style.display='none'; el('admin').style.display='block'; loadAll(); }
+  else toast('Неверный пароль');
+}
+
+function switchTab(name, btn) {
+  document.querySelectorAll('[id^="panel-"]').forEach(p=>p.style.display='none');
+  el('panel-'+name).style.display='block';
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+  btn.classList.add('on');
+}
+
+async function loadAll() {
+  await Promise.all([
+    sbGet('trips','id=eq.'+TRIP_ID).then(r=>{ if(r[0]) _baseCurrency=r[0].base_currency||'RUB'; }),
+    sbGet('members','trip_id=eq.'+TRIP_ID+'&order=joined_at.asc').then(r=>_members=r),
+    sbGet('schedule','trip_id=eq.'+TRIP_ID+'&order=day.asc,time_start.asc').then(r=>_events=r),
+    sbGet('places','trip_id=eq.'+TRIP_ID+'&order=sort_order.asc,name.asc').then(r=>_places=r),
+    sbGet('messages','trip_id=eq.'+TRIP_ID+'&order=created_at.desc&limit=50').then(r=>_messages=r),
+    sbGet('expenses','trip_id=eq.'+TRIP_ID+'&order=created_at.desc').then(r=>_expenses=r),
+    sbGet('settlements','trip_id=eq.'+TRIP_ID+'&order=created_at.desc').then(r=>_settlements=r)
+  ]);
+  if (_expenses.length) {
+    const ids=_expenses.map(e=>e.id).join(',');
+    _splits=await sbGet('splits','expense_id=in.('+ids+')');
+  }
+
+  renderStats();
+  renderQR();
+  renderScheduleAdmin();
+  renderPlacesAdmin();
+  renderMessagesAdmin();
+  renderMembers();
+  renderExpensesAdmin();
+}
+
+function renderStats() {
+  const total=_expenses.reduce((s,e)=>s+parseFloat(e.amount),0);
+  const curOpts=['RUB','USD','EUR','THB','TRY','GEL'].map(c=>'<option value="'+c+'"'+(c===_baseCurrency?' selected':'')+'>'+c+' '+(CUR_SYM[c]||'')+'</option>').join('');
+  el('stats').innerHTML =
+    '<div class="stat-box"><div class="stat-val">'+_members.length+'</div><div class="stat-lbl">Участников</div></div>'+
+    '<div class="stat-box"><div class="stat-val">'+_events.length+'</div><div class="stat-lbl">Событий</div></div>'+
+    '<div class="stat-box"><div class="stat-val">'+fmtMoney(total,_baseCurrency)+'</div><div class="stat-lbl">Расходы</div></div>'+
+    '<div style="margin-top:16px"><div class="form-label">Базовая валюта</div><select class="field" id="base-cur-sel" onchange="changeBaseCurrency(this.value)" style="max-width:200px">'+curOpts+'</select></div>';
+}
+async function changeBaseCurrency(cur) {
+  if (await sbPatch('trips','id=eq.'+TRIP_ID,{base_currency:cur})) {
+    _baseCurrency=cur; toast('Валюта: '+cur); renderStats();
+  } else toast('Ошибка');
+}
+
+/* ═══ QR ═══ */
+function renderQR() {
+  const url = window.location.origin + '/';
+  const qr = qrcode(0,'M');
+  qr.addData(url);
+  qr.make();
+  el('panel-qr').innerHTML =
+    '<div class="qr-wrap"><h2 style="margin:0 0 12px">QR-код для участников</h2><p style="color:var(--sub);margin-bottom:16px;font-size:13px">Покажите этот код на месте сбора</p>'+
+    qr.createSvgTag({cellSize:6,margin:4})+
+    '<p style="margin-top:12px;font-size:12px;color:var(--sub)">'+esc(url)+'</p></div>';
+}
+
+/* ═══ SCHEDULE ═══ */
+function renderScheduleAdmin() {
+  el('panel-schedule').innerHTML =
+    '<h2>Добавить событие</h2>'+
+    '<div class="form-row"><div class="form-group"><div class="form-label">Дата</div><input class="field" type="date" id="ev-day"></div><div class="form-group"><div class="form-label">Время начала</div><input class="field" type="time" id="ev-start"></div></div>'+
+    '<div class="form-row"><div class="form-group"><div class="form-label">Время конца</div><input class="field" type="time" id="ev-end"></div><div class="form-group"><div class="form-label">Место</div><select class="field" id="ev-place"><option value="">— без места —</option>'+_places.map(p=>'<option value="'+p.id+'">'+esc(p.name)+'</option>').join('')+'</select></div></div>'+
+    '<div class="form-group"><div class="form-label">Название</div><input class="field" id="ev-title" placeholder="Завтрак"></div>'+
+    '<div class="form-group"><div class="form-label">Описание</div><input class="field" id="ev-desc" placeholder="Необязательно"></div>'+
+    '<button class="btn btn-accent btn-sm" onclick="addEvent()">Добавить</button>'+
+    '<h2>Все события</h2>'+
+    (_events.length ?
+      '<table><tr><th>Дата</th><th>Время</th><th>Название</th><th>Описание</th><th></th></tr>'+
+      _events.map(e=>'<tr><td>'+e.day+'</td><td>'+(e.time_start||'').slice(0,5)+'</td><td>'+esc(e.title)+'</td><td style="color:var(--sub)">'+esc(e.description||'')+'</td><td><button class="btn btn-red btn-sm" onclick="delEvent(\''+e.id+'\')">X</button></td></tr>').join('')+
+      '</table>' : '<div class="empty">Нет событий</div>');
+}
+
+async function addEvent() {
+  const day=el('ev-day').value, start=el('ev-start').value, title=el('ev-title').value.trim();
+  if(!day||!start||!title){toast('Заполни дату, время и название');return;}
+  await sbPost('schedule',{trip_id:TRIP_ID,day,time_start:start,time_end:el('ev-end').value||null,title,description:el('ev-desc').value.trim()||null,place_id:el('ev-place').value||null});
+  toast('Событие добавлено');
+  _events=await sbGet('schedule','trip_id=eq.'+TRIP_ID+'&order=day.asc,time_start.asc');
+  renderScheduleAdmin();
+}
+
+async function delEvent(id) {
+  if (!confirm('Удалить это событие?')) return;
+  await sbDelete('schedule','id=eq.'+id);
+  _events=_events.filter(e=>e.id!==id);
+  renderScheduleAdmin();
+  toast('Удалено');
+}
+
+/* ═══ PLACES ═══ */
+function renderPlacesAdmin() {
+  const cats=[{key:'housing',label:'🏨 Жилье'},{key:'food',label:'🍽 Еда'},{key:'sight',label:'🏛 Достопримечательности'},{key:'transport',label:'🚕 Транспорт'},{key:'other',label:'📦 Другое'}];
+  el('panel-places').innerHTML =
+    '<h2>Добавить место</h2>'+
+    '<div class="form-group"><div class="form-label">Название</div><input class="field" id="pl-name" placeholder="Гостиница Астория"></div>'+
+    '<div class="form-group"><div class="form-label">Адрес</div><input class="field" id="pl-addr" placeholder="Большая Морская ул., 39"></div>'+
+    '<div class="form-group"><div class="form-label">Фото URL</div><input class="field" id="pl-photo" placeholder="https://...jpg"></div>'+
+    '<div class="form-group"><div class="form-label">Ссылка на карту (необязательно)</div><input class="field" id="pl-map" placeholder="https://yandex.ru/maps/..."></div>'+
+    '<div class="form-row"><div class="form-group"><div class="form-label">Широта (lat)</div><input class="field" type="number" step="any" id="pl-lat" placeholder="59.9342"></div><div class="form-group"><div class="form-label">Долгота (lng)</div><input class="field" type="number" step="any" id="pl-lng" placeholder="30.3064"></div></div>'+
+    '<div class="form-row"><div class="form-group"><div class="form-label">Категория</div><select class="field" id="pl-cat">'+cats.map(c=>'<option value="'+c.key+'">'+c.label+'</option>').join('')+'</select></div><div class="form-group"><div class="form-label">Порядок</div><input class="field" type="number" id="pl-order" value="0"></div></div>'+
+    '<div class="form-group"><div class="form-label">Описание</div><textarea class="field" id="pl-desc" rows="3" placeholder="Необязательно"></textarea></div>'+
+    '<button class="btn btn-accent btn-sm" onclick="addPlace()">Добавить</button>'+
+    '<h2>Все места</h2>'+
+    (_places.length ?
+      '<table><tr><th>Фото</th><th>Название</th><th>Адрес</th><th>Категория</th><th>Координаты</th><th></th></tr>'+
+      _places.map(p=>'<tr><td>'+(p.photo_url?'<img src="'+esc(p.photo_url)+'" style="width:40px;height:40px;object-fit:cover;border-radius:4px">':'—')+'</td><td>'+esc(p.name)+'</td><td style="color:var(--sub)">'+esc(p.address||'')+'</td><td><span class="badge badge-accent">'+p.category+'</span></td><td style="color:var(--sub);font-size:11px">'+(p.lat?p.lat+', '+p.lng:'—')+'</td><td><button class="btn btn-red btn-sm" onclick="delPlace(\''+p.id+'\')">X</button></td></tr>').join('')+
+      '</table>' : '<div class="empty">Нет мест</div>');
+}
+
+async function addPlace() {
+  const name=el('pl-name').value.trim();
+  if(!name){toast('Введи название');return;}
+  await sbPost('places',{trip_id:TRIP_ID,name,address:el('pl-addr').value.trim()||null,photo_url:el('pl-photo').value.trim()||null,map_url:el('pl-map').value.trim()||null,lat:parseFloat(el('pl-lat').value)||null,lng:parseFloat(el('pl-lng').value)||null,category:el('pl-cat').value,sort_order:parseInt(el('pl-order').value)||0,description:el('pl-desc').value.trim()||null});
+  toast('Место добавлено');
+  _places=await sbGet('places','trip_id=eq.'+TRIP_ID+'&order=sort_order.asc,name.asc');
+  renderPlacesAdmin();
+}
+
+async function delPlace(id) {
+  if (!confirm('Удалить это место?')) return;
+  await sbDelete('places','id=eq.'+id);
+  _places=_places.filter(p=>p.id!==id);
+  renderPlacesAdmin();
+  toast('Удалено');
+}
+
+/* ═══ MESSAGES ═══ */
+function renderMessagesAdmin() {
+  el('panel-messages').innerHTML =
+    '<h2>Отправить сообщение</h2>'+
+    '<textarea class="field" id="msg-text" placeholder="Текст сообщения для всех участников"></textarea>'+
+    '<label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;font-size:13px;font-weight:600"><input type="checkbox" id="msg-pin"> Закрепить</label>'+
+    '<button class="btn btn-accent btn-sm" onclick="sendMsg()">Отправить</button>'+
+    '<h2>История</h2>'+
+    (_messages.length ?
+      _messages.map(m=>{
+        const t=new Date(m.created_at);
+        return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:12px 16px;margin-bottom:8px'+(m.is_pinned?';border-color:var(--accent)':'')+'"><div style="font-size:11px;color:var(--accent);font-weight:700">'+(m.is_pinned?'📌 ':'')+esc(m.author_name||'Организатор')+'</div><div style="font-size:14px;margin:4px 0">'+esc(m.text)+'</div><div style="font-size:11px;color:var(--sub)">'+pad(t.getDate())+'.'+pad(t.getMonth()+1)+' '+pad(t.getHours())+':'+pad(t.getMinutes())+'</div></div>';
+      }).join('') : '<div class="empty">Нет сообщений</div>');
+}
+
+async function sendMsg() {
+  const text=el('msg-text').value.trim();
+  if(!text){toast('Введи текст');return;}
+  await sbPost('messages',{trip_id:TRIP_ID,author_tg_id:'admin',author_name:'Организатор',text,is_pinned:el('msg-pin').checked});
+  toast('Сообщение отправлено');
+  el('msg-text').value='';
+  el('msg-pin').checked=false;
+  _messages=await sbGet('messages','trip_id=eq.'+TRIP_ID+'&order=created_at.desc&limit=50');
+  renderMessagesAdmin();
+}
+
+/* ═══ MEMBERS ═══ */
+function renderMembers() {
+  el('panel-members').innerHTML =
+    '<h2>Участники ('+_members.length+')</h2>'+
+    (_members.length ?
+      '<table><tr><th>Имя</th><th>Telegram</th><th>Роль</th><th>Присоединился</th></tr>'+
+      _members.map(m=>{
+        const t=new Date(m.joined_at);
+        return '<tr><td style="font-weight:700">'+esc(m.display_name||m.tg_name||'—')+'</td><td style="color:var(--sub)">'+(m.tg_username?'@'+esc(m.tg_username):'—')+'</td><td><span class="badge '+(m.role==='organizer'?'badge-accent':'badge-green')+'">'+m.role+'</span></td><td style="color:var(--sub)">'+pad(t.getDate())+'.'+pad(t.getMonth()+1)+' '+pad(t.getHours())+':'+pad(t.getMinutes())+'</td></tr>';
+      }).join('')+
+      '</table>' : '<div class="empty">Нет участников</div>');
+}
+
+/* ═══ EXPENSES ═══ */
+function renderExpensesAdmin() {
+  const total=_expenses.reduce((s,e)=>s+parseFloat(e.amount),0);
+  const catIcons={food:'🍽',transport:'🚕',housing:'🏨',entertainment:'🎭',other:'📦'};
+
+  el('panel-expenses').innerHTML =
+    '<h2>Расходы ('+fmtMoney(total,_baseCurrency)+')</h2>'+
+    (_expenses.length ?
+      '<table><tr><th></th><th>Описание</th><th>Кто платил</th><th>Сумма</th><th>Дата</th></tr>'+
+      _expenses.map(e=>{
+        const t=new Date(e.created_at);
+        const payer=_members.find(m=>m.tg_id===e.paid_by);
+        const cur=e.currency||'RUB';
+        return '<tr><td>'+(catIcons[e.category]||'📦')+'</td><td style="font-weight:600">'+esc(e.description)+'</td><td>'+esc(payer?(payer.display_name||payer.tg_name):'?')+'</td><td style="font-weight:700">'+fmtMoney(parseFloat(e.amount),cur)+'</td><td style="color:var(--sub)">'+pad(t.getDate())+'.'+pad(t.getMonth()+1)+'</td></tr>';
+      }).join('')+
+      '</table>' : '<div class="empty">Нет расходов</div>')+
+    (_settlements.length ?
+      '<h2>Расчёты</h2><table><tr><th>От</th><th>Кому</th><th>Сумма</th><th>Дата</th></tr>'+
+      _settlements.map(s=>{
+        const t=new Date(s.created_at);
+        const from=_members.find(m=>m.tg_id===s.from_tg_id);
+        const to=_members.find(m=>m.tg_id===s.to_tg_id);
+        return '<tr><td>'+esc(from?(from.display_name||from.tg_name):'?')+'</td><td>'+esc(to?(to.display_name||to.tg_name):'?')+'</td><td style="font-weight:700">'+fmtMoney(parseFloat(s.amount),_baseCurrency)+'</td><td style="color:var(--sub)">'+pad(t.getDate())+'.'+pad(t.getMonth()+1)+'</td></tr>';
+      }).join('')+'</table>' : '');
+}
+</script>
+</body>
+</html>
