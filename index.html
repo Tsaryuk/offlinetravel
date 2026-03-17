@@ -468,6 +468,32 @@ body{margin:0;padding:0;height:100%;font-family:'Plus Jakarta Sans',system-ui,-a
 .offline-bar .sync-spinner{width:12px;height:12px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;display:none}
 .offline-bar.syncing .sync-spinner{display:inline-block}
 .offline-bar.syncing{background:var(--green)}
+/* ─── MAP ─── */
+#places-map{z-index:0}
+.map-toggle-btn{background:none;border:none;cursor:pointer;padding:6px;color:var(--sub)}
+.map-download-bar{display:flex;align-items:center;gap:10px;padding:10px 14px;margin:0 12px 12px;border-radius:var(--r);background:var(--surface);border:1px solid var(--border)}
+.map-download-bar .progress-text{font-size:12px;color:var(--sub);flex:1}
+.map-download-bar .progress-fill{height:4px;background:var(--accent);border-radius:2px;transition:width .2s}
+.leaflet-popup-content{font-family:'Plus Jakarta Sans',sans-serif;font-size:13px}
+.leaflet-popup-content .popup-name{font-weight:700;font-size:14px;margin-bottom:4px}
+.leaflet-popup-content .popup-addr{color:var(--sub);font-size:12px;margin-bottom:6px}
+.leaflet-popup-content .popup-route{display:inline-block;padding:4px 12px;border-radius:8px;background:var(--accent);color:#fff;font-size:12px;font-weight:600;text-decoration:none;cursor:pointer;border:none}
+/* ─── PRINT ─── */
+@media print{
+  #nav,.fab-wrap,.offline-bar,#toasts,#notif-banner,.overlay,.page-hdr button,.map-toggle-btn,.map-download-bar,#ptr-indicator,.chat-input-bar,.theme-btn{display:none!important}
+  body{background:#fff;color:#000;font-size:12px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  #app-wrap{display:block!important;overflow:visible!important;padding:0}
+  #screens{display:block!important;overflow:visible!important;scroll-snap-type:none}
+  .screen{display:none!important;width:auto!important;min-width:0!important;height:auto!important;overflow:visible!important}
+  .screen.print-active{display:block!important}
+  .screen-inner{padding:0 12px!important}
+  .card{break-inside:avoid;box-shadow:none!important;border:1px solid #ddd}
+  .page-hdr{position:static!important}
+  .page-hdr-title{font-size:18px}
+  .print-header{display:block!important;text-align:center;margin-bottom:16px;padding:12px 0;border-bottom:2px solid #333}
+  .print-header h1{font-size:20px;margin:0 0 4px}
+  .print-header p{font-size:12px;color:#666;margin:0}
+}
 </style>
 </head>
 <body>
@@ -550,7 +576,16 @@ body{margin:0;padding:0;height:100%;font-family:'Plus Jakarta Sans',system-ui,-a
       <div class="screen-inner">
         <div class="page-hdr">
           <div class="page-hdr-title">Места</div>
-          <button id="places-pdf-btn" onclick="exportPlacesPDF()" style="display:none;background:none;border:none;cursor:pointer;padding:6px;color:var(--sub)"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>
+          <div style="display:flex;align-items:center;gap:2px">
+            <button class="map-toggle-btn" id="map-toggle-btn" onclick="togglePlacesMap()" title="Показать карту"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg></button>
+            <button id="places-pdf-btn" onclick="exportPlacesPDF()" style="display:none;background:none;border:none;cursor:pointer;padding:6px;color:var(--sub)"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>
+            <button class="map-toggle-btn" onclick="printTripInfo()" title="Печать"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg></button>
+          </div>
+        </div>
+        <div id="places-map" style="display:none;height:60vh;border-radius:12px;overflow:hidden;margin:0 0 12px"></div>
+        <div id="map-download-bar" style="display:none" class="map-download-bar">
+          <button class="btn btn-ghost" style="font-size:12px;padding:6px 12px;white-space:nowrap" onclick="downloadMapTiles()">Скачать карту</button>
+          <div class="progress-text" id="map-dl-status"></div>
         </div>
         <div class="place-filter-tabs" id="place-filter-tabs"></div>
         <div id="places-list"></div>
@@ -1010,6 +1045,19 @@ body{margin:0;padding:0;height:100%;font-family:'Plus Jakarta Sans',system-ui,-a
 </div>
 
 <script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').then(reg => {
+    reg.addEventListener('updatefound', () => {
+      const nw = reg.installing;
+      nw.addEventListener('statechange', () => {
+        if (nw.state === 'activated' && navigator.serviceWorker.controller) {
+          toast('Обновление установлено');
+        }
+      });
+    });
+  }).catch(() => {});
+}
+
 /* ═══════════════════════════════════════════
    CONFIG
 ═══════════════════════════════════════════ */
@@ -2283,15 +2331,223 @@ function openRoutePicker(placeId) {
   const hasCoords = p.lat && p.lng;
   const addr = encodeURIComponent(p.address || p.name);
   const coord = hasCoords ? p.lat+','+p.lng : null;
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  const isAndroid = /Android/.test(navigator.userAgent);
   const options = [];
-  options.push({ label:'Google Maps', icon:'🗺', url: hasCoords ? 'https://www.google.com/maps/dir/?api=1&destination='+coord : 'https://www.google.com/maps/dir/?api=1&destination='+addr });
-  options.push({ label:'Яндекс Карты', icon:'🟡', url: hasCoords ? 'https://yandex.ru/maps/?rtext=~'+coord+'&rtt=auto' : 'https://yandex.ru/maps/?rtext=~'+addr+'&rtt=auto' });
-  options.push({ label:'2ГИС', icon:'🟢', url: hasCoords ? 'https://2gis.ru/routeSearch/rsType/car/to/'+p.lng+','+p.lat : 'https://2gis.ru/search/'+addr });
+  if (hasCoords) {
+    if (isIOS) {
+      options.push({ label:'Google Maps', icon:'🗺', url:'comgooglemaps://?daddr='+coord+'&directionsmode=driving', fallback:'https://www.google.com/maps/dir/?api=1&destination='+coord });
+      options.push({ label:'Яндекс Карты', icon:'🟡', url:'yandexmaps://maps.yandex.ru/?rtext=~'+coord+'&rtt=auto', fallback:'https://yandex.ru/maps/?rtext=~'+coord+'&rtt=auto' });
+      options.push({ label:'2ГИС', icon:'🟢', url:'dgis://2gis.ru/routeSearch/rsType/car/to/'+p.lng+','+p.lat, fallback:'https://2gis.ru/routeSearch/rsType/car/to/'+p.lng+','+p.lat });
+    } else {
+      options.push({ label:'Google Maps', icon:'🗺', url:'https://www.google.com/maps/dir/?api=1&destination='+coord });
+      options.push({ label:'Яндекс Карты', icon:'🟡', url: isAndroid ? 'intent://maps.yandex.ru/?rtext=~'+coord+'&rtt=auto#Intent;scheme=yandexmaps;package=ru.yandex.yandexmaps;end' : 'https://yandex.ru/maps/?rtext=~'+coord+'&rtt=auto' });
+      options.push({ label:'2ГИС', icon:'🟢', url:'https://2gis.ru/routeSearch/rsType/car/to/'+p.lng+','+p.lat });
+    }
+  } else {
+    options.push({ label:'Google Maps', icon:'🗺', url:'https://www.google.com/maps/dir/?api=1&destination='+addr });
+    options.push({ label:'Яндекс Карты', icon:'🟡', url:'https://yandex.ru/maps/?rtext=~'+addr+'&rtt=auto' });
+    options.push({ label:'2ГИС', icon:'🟢', url:'https://2gis.ru/search/'+addr });
+  }
   el('route-picker-addr').textContent = p.address || p.name;
-  el('route-picker-options').innerHTML = options.map(o =>
-    '<a href="'+esc(o.url)+'" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid var(--border);text-decoration:none;color:var(--text)"><span style="font-size:24px">'+o.icon+'</span><span style="font-size:15px;font-weight:600">'+esc(o.label)+'</span><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--sub)" stroke-width="2" style="margin-left:auto"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>'
-  ).join('');
+  el('route-picker-options').innerHTML = options.map(o => {
+    const hint = o.fallback ? '<div style="font-size:11px;color:var(--sub)">Откроет приложение</div>' : '';
+    const onclick = o.fallback ? 'onclick="event.preventDefault();window.location=\''+o.url+'\';setTimeout(()=>window.open(\''+o.fallback+'\'),500)"' : '';
+    const href = o.fallback ? '#' : esc(o.url);
+    const target = o.fallback ? '' : ' target="_blank" rel="noopener"';
+    return '<a href="'+href+'"'+target+' '+onclick+' style="display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid var(--border);text-decoration:none;color:var(--text)"><span style="font-size:24px">'+o.icon+'</span><div><span style="font-size:15px;font-weight:600">'+esc(o.label)+'</span>'+hint+'</div><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--sub)" stroke-width="2" style="margin-left:auto"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>';
+  }).join('');
   openSheet('ov-route-picker');
+}
+
+/* ═══════════════════════════════════════════
+   LEAFLET MAP
+═══════════════════════════════════════════ */
+let _leafletMap = null;
+let _leafletReady = false;
+let _mapVisible = false;
+
+function loadCSS(href) {
+  if (document.querySelector('link[href="'+href+'"]')) return;
+  const l = document.createElement('link');
+  l.rel = 'stylesheet'; l.href = href; l.crossOrigin = 'anonymous';
+  document.head.appendChild(l);
+}
+
+async function togglePlacesMap() {
+  _mapVisible = !_mapVisible;
+  const mapEl = el('places-map');
+  const listEl = el('places-list');
+  const filterEl = el('place-filter-tabs');
+  const dlBar = el('map-download-bar');
+  const btn = el('map-toggle-btn');
+
+  if (_mapVisible) {
+    mapEl.style.display = '';
+    listEl.style.display = 'none';
+    filterEl.style.display = 'none';
+    dlBar.style.display = 'flex';
+    btn.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>';
+    if (!_leafletReady) {
+      loadCSS('https://unpkg.com/leaflet@1.9.4/dist/leaflet.css');
+      await loadScript('https://unpkg.com/leaflet@1.9.4/dist/leaflet.js');
+      _leafletReady = true;
+    }
+    initPlacesMap();
+    checkTileStatus();
+  } else {
+    mapEl.style.display = 'none';
+    listEl.style.display = '';
+    filterEl.style.display = '';
+    dlBar.style.display = 'none';
+    btn.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>';
+  }
+}
+
+function initPlacesMap() {
+  const container = el('places-map');
+  if (_leafletMap) {
+    _leafletMap.invalidateSize();
+    renderPlaceMarkers();
+    return;
+  }
+  _leafletMap = L.map(container, { zoomControl: true, attributionControl: false });
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    crossOrigin: true,
+    attribution: '&copy; OpenStreetMap'
+  }).addTo(_leafletMap);
+
+  renderPlaceMarkers();
+}
+
+function renderPlaceMarkers() {
+  if (!_leafletMap) return;
+  _leafletMap.eachLayer(l => { if (l instanceof L.Marker) _leafletMap.removeLayer(l); });
+
+  const withCoords = _places.filter(p => p.lat && p.lng);
+  if (!withCoords.length) {
+    _leafletMap.setView([55.75, 37.62], 10);
+    return;
+  }
+
+  const bounds = [];
+  withCoords.forEach(p => {
+    const catObj = typeof CATS !== 'undefined' ? CATS.find(c => c.id === p.category) : null;
+    const icon = catObj ? catObj.icon : '📍';
+    const marker = L.marker([p.lat, p.lng], {
+      icon: L.divIcon({
+        className: '',
+        html: '<div style="font-size:24px;filter:drop-shadow(0 2px 3px rgba(0,0,0,.3))">'+icon+'</div>',
+        iconSize: [28, 28],
+        iconAnchor: [14, 28],
+        popupAnchor: [0, -28]
+      })
+    }).addTo(_leafletMap);
+    marker.bindPopup(
+      '<div class="popup-name">'+esc(p.name)+'</div>'
+      + (p.address ? '<div class="popup-addr">'+esc(p.address)+'</div>' : '')
+      + '<button class="popup-route" onclick="openRoutePicker(\''+p.id+'\')">Маршрут</button>'
+    );
+    bounds.push([p.lat, p.lng]);
+  });
+  _leafletMap.fitBounds(bounds, { padding: [30, 30], maxZoom: 15 });
+}
+
+/* ═══════════════════════════════════════════
+   MAP TILE DOWNLOAD
+═══════════════════════════════════════════ */
+function lon2tile(lon, z) { return Math.floor((lon + 180) / 360 * Math.pow(2, z)); }
+function lat2tile(lat, z) { return Math.floor((1 - Math.log(Math.tan(lat * Math.PI / 180) + 1 / Math.cos(lat * Math.PI / 180)) / Math.PI) / 2 * Math.pow(2, z)); }
+
+async function downloadMapTiles() {
+  const withCoords = _places.filter(p => p.lat && p.lng);
+  if (!withCoords.length) { toast('Нет мест с координатами'); return; }
+
+  const lats = withCoords.map(p => p.lat);
+  const lngs = withCoords.map(p => p.lng);
+  const pad = 0.02;
+  const bbox = {
+    minLat: Math.min(...lats) - pad, maxLat: Math.max(...lats) + pad,
+    minLng: Math.min(...lngs) - pad, maxLng: Math.max(...lngs) + pad
+  };
+
+  const urls = [];
+  for (let z = 12; z <= 16; z++) {
+    const x1 = lon2tile(bbox.minLng, z), x2 = lon2tile(bbox.maxLng, z);
+    const y1 = lat2tile(bbox.maxLat, z), y2 = lat2tile(bbox.minLat, z);
+    for (let x = x1; x <= x2; x++) {
+      for (let y = y1; y <= y2; y++) {
+        urls.push('https://tile.openstreetmap.org/'+z+'/'+x+'/'+y+'.png');
+      }
+    }
+  }
+
+  if (urls.length > 2000) { toast('Слишком большая область ('+urls.length+' тайлов)'); return; }
+
+  const statusEl = el('map-dl-status');
+  statusEl.textContent = 'Загрузка: 0/' + urls.length + '...';
+
+  if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+    const handler = e => {
+      if (e.data.type === 'TILES_PROGRESS') {
+        statusEl.textContent = 'Загрузка: ' + e.data.done + '/' + e.data.total + '...';
+      } else if (e.data.type === 'TILES_DONE') {
+        statusEl.textContent = 'Готово! ' + e.data.total + ' тайлов';
+        idbPut('meta', 'tiles_downloaded', { count: e.data.total, ts: Date.now() }).catch(() => {});
+        navigator.serviceWorker.removeEventListener('message', handler);
+        toast('Карта скачана для офлайн');
+      }
+    };
+    navigator.serviceWorker.addEventListener('message', handler);
+    navigator.serviceWorker.controller.postMessage({ type: 'CACHE_TILES', urls });
+  } else {
+    let done = 0;
+    for (let i = 0; i < urls.length; i += 6) {
+      await Promise.all(urls.slice(i, i + 6).map(u => fetch(u).catch(() => null)));
+      done += Math.min(6, urls.length - i);
+      statusEl.textContent = 'Загрузка: ' + done + '/' + urls.length + '...';
+    }
+    statusEl.textContent = 'Готово! ' + urls.length + ' тайлов';
+    idbPut('meta', 'tiles_downloaded', { count: urls.length, ts: Date.now() }).catch(() => {});
+    toast('Карта скачана для офлайн');
+  }
+}
+
+async function checkTileStatus() {
+  try {
+    const info = await idbGet('meta', 'tiles_downloaded');
+    if (info && info.ts) {
+      const ago = Math.round((Date.now() - info.ts) / 86400000);
+      el('map-dl-status').textContent = info.count + ' тайлов' + (ago > 0 ? ' ('+ago+' дн. назад)' : ' (сегодня)');
+    }
+  } catch {}
+}
+
+/* ═══════════════════════════════════════════
+   PRINT
+═══════════════════════════════════════════ */
+function printTripInfo() {
+  const screens = document.querySelectorAll('.screen');
+  const curIdx = Math.round(el('screens').scrollLeft / el('screens').offsetWidth);
+  screens.forEach((s, i) => s.classList.toggle('print-active', i === curIdx));
+
+  let hdr = document.querySelector('.print-header');
+  if (!hdr) {
+    hdr = document.createElement('div');
+    hdr.className = 'print-header';
+    hdr.style.display = 'none';
+    document.body.prepend(hdr);
+  }
+  const trip = S.trip;
+  hdr.innerHTML = '<h1>'+esc(trip?.name || 'Offline.Travel')+'</h1>'
+    + (trip ? '<p>'+esc(trip.start_date)+' — '+esc(trip.end_date)+'</p>' : '');
+
+  window.print();
+  window.addEventListener('afterprint', function cleanup() {
+    screens.forEach(s => s.classList.remove('print-active'));
+    window.removeEventListener('afterprint', cleanup);
+  }, { once: true });
 }
 
 /* ═══════════════════════════════════════════
@@ -3770,7 +4026,7 @@ function loadScript(url) {
   return new Promise((resolve, reject) => {
     if (document.querySelector('script[src="'+url+'"]')) { resolve(); return; }
     const s = document.createElement('script');
-    s.src = url; s.onload = resolve; s.onerror = reject;
+    s.src = url; s.crossOrigin = 'anonymous'; s.onload = resolve; s.onerror = reject;
     document.head.appendChild(s);
   });
 }
