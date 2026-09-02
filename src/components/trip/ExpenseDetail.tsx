@@ -11,6 +11,7 @@ import { toast } from "@/components/ui/Toast";
 import { fmtMoney } from "@/lib/money";
 import { dayLabel } from "@/lib/dates";
 import { CATEGORIES, type Expense } from "@/lib/types";
+import { photoSrc } from "@/lib/client/image";
 
 export function ExpenseDetail({ expense: e, onClose }: { expense: Expense; onClose: () => void }) {
   const t = useTripCtx();
@@ -31,6 +32,24 @@ export function ExpenseDetail({ expense: e, onClose }: { expense: Expense; onClo
         {dayLabel(e.expense_date)} · {e.op_type === "transfer" ? "Перевод" : e.op_type === "income" ? "Возврат" : `${cat?.icon ?? ""} ${cat?.label ?? "Другое"}`} · {e.op_type === "transfer" ? "отправил" : "платил"} {t.name(e.paid_by)}
       </div>
       <div className="tabular mt-4 text-[34px] font-medium tracking-[-0.03em]">{fmtMoney(e.amount, e.currency)}</div>
+
+      {e.photo_url && (
+        <a href={photoSrc(e.photo_url) ?? "#"} target="_blank" rel="noopener" className="mt-3 block">
+          <img src={photoSrc(e.photo_url) ?? ""} alt="Чек" className="max-h-44 rounded-field object-cover" />
+        </a>
+      )}
+
+      {e.items && e.items.length > 0 && (
+        <div className="mt-4 rounded-card bg-surface p-3">
+          <div className="mb-1 text-[12px] font-medium text-ink-2">По чеку</div>
+          {e.items.map((it, i) => (
+            <div key={i} className="flex items-baseline justify-between gap-2 py-1 text-[13.5px]">
+              <div className="min-w-0 flex-1 truncate">{it.title}{it.qty > 1 ? ` × ${it.qty}` : ""}<span className="ml-1.5 text-[12px] text-ink-2">{it.for.length ? it.for.map((id) => t.name(id)).join(", ") : "все"}</span></div>
+              <div className="tabular shrink-0">{fmtMoney(it.sum, e.currency)}</div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {e.op_type !== "transfer" && (
         <div className="mt-4">

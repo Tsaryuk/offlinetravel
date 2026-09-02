@@ -108,6 +108,25 @@ export interface Split {
   amount: number;
 }
 
+/** Позиция чека после распознавания. */
+export interface ReceiptItem {
+  title: string;
+  qty: number;
+  sum: number;
+  /** Кто ел/пользовался. Пусто — делится на всех участников расхода. */
+  for: number[];
+}
+
+export interface ReceiptData {
+  merchant: string | null;
+  date: string | null;
+  currency: Currency | null;
+  total: number | null;
+  items: Array<{ title: string; qty: number; sum: number }>;
+  confidence: "high" | "medium" | "low";
+  note: string | null;
+}
+
 export interface Expense {
   id: string;
   trip_id: string;
@@ -121,6 +140,7 @@ export interface Expense {
   split_type: SplitType;
   expense_date: string;
   photo_url: string | null;
+  items: ReceiptItem[] | null;
   client_id: string | null;
   created_by: number | null;
   created_at: string;
@@ -190,7 +210,8 @@ export const ExpenseInput = z.object({
   category: z.string().max(32).default("other"),
   split_type: z.enum(["equal", "parts", "amounts"]).default("equal"),
   expense_date: isoDate,
-  photo_url: z.string().max(2_000_000).optional().nullable(),
+  photo_url: z.string().max(500).optional().nullable(),
+  items: z.array(z.object({ title: z.string().max(200), qty: z.number().min(0), sum: z.number().min(0), for: z.array(tgId).default([]) })).max(200).optional().nullable(),
   client_id: z.string().max(64).optional().nullable(),
   splits: z.array(SplitInput).default([]),
 }).refine((e) => e.op_type !== "transfer" || (e.transfer_to && e.transfer_to !== e.paid_by), {

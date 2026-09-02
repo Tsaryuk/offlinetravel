@@ -9,6 +9,8 @@ const schema = z.object({
   TELEGRAM_BOT_USERNAME: z.string().min(3).default("offlinetravel_bot"),
   SESSION_SECRET: z.string().min(32),
   APP_URL: z.string().url().default("https://offlinetravel.vercel.app"),
+  ANTHROPIC_API_KEY: z.string().min(20).optional(),
+  ANTHROPIC_MODEL: z.string().default("claude-haiku-4-5-20251001"),
 });
 
 export type Env = z.infer<typeof schema>;

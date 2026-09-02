@@ -51,6 +51,7 @@ export function optimisticExpense(qc: QueryClient, tripId: string, input: Expens
       split_type: input.split_type,
       expense_date: input.expense_date,
       photo_url: input.photo_url ?? null,
+      items: input.items ?? null,
       client_id: input.client_id ?? null,
       created_by: tgId,
       created_at: new Date().toISOString(),

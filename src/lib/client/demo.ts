@@ -50,11 +50,11 @@ const all = members.map((m) => m.tg_id);
 const equal = (id: string, amount: number, ids = all) => ids.map((tg, i) => ({ id: `${id}_${i}`, expense_id: id, tg_id: tg, amount: Math.round((amount / ids.length) * 100) / 100 }));
 
 let expenses: Expense[] = [
-  { id: "e1", trip_id: TRIP, op_type: "expense", paid_by: ME, transfer_to: null, amount: 12400, currency: "RUB", description: "Гостевой дом, 1 ночь", category: "housing", split_type: "equal", expense_date: "2026-09-02", photo_url: null, client_id: null, created_by: ME, created_at: "2026-09-02T15:30:00Z", splits: equal("e1", 12400) },
-  { id: "e2", trip_id: TRIP, op_type: "expense", paid_by: 100003, transfer_to: null, amount: 3600, currency: "RUB", description: "Электрички туда", category: "transport", split_type: "equal", expense_date: "2026-09-02", photo_url: null, client_id: null, created_by: 100003, created_at: "2026-09-02T12:10:00Z", splits: equal("e2", 3600) },
-  { id: "e3", trip_id: TRIP, op_type: "expense", paid_by: 100002, transfer_to: null, amount: 4200, currency: "RUB", description: "Продукты на маршрут", category: "groceries", split_type: "equal", expense_date: "2026-09-01", photo_url: null, client_id: null, created_by: 100002, created_at: "2026-09-01T20:40:00Z", splits: equal("e3", 4200) },
-  { id: "e4", trip_id: TRIP, op_type: "expense", paid_by: 100004, transfer_to: null, amount: 1800, currency: "RUB", description: "Газ и горелка", category: "gear", split_type: "equal", expense_date: "2026-09-01", photo_url: null, client_id: null, created_by: 100004, created_at: "2026-09-01T11:00:00Z", splits: equal("e4", 1800) },
-  { id: "e5", trip_id: TRIP, op_type: "transfer", paid_by: 100002, transfer_to: ME, amount: 2000, currency: "RUB", description: "", category: "transfer", split_type: "equal", expense_date: "2026-09-01", photo_url: null, client_id: null, created_by: 100002, created_at: "2026-09-01T18:00:00Z", splits: [] },
+  { id: "e1", trip_id: TRIP, op_type: "expense", paid_by: ME, transfer_to: null, amount: 12400, currency: "RUB", description: "Гостевой дом, 1 ночь", category: "housing", split_type: "equal", expense_date: "2026-09-02", photo_url: null, items: null, client_id: null, created_by: ME, created_at: "2026-09-02T15:30:00Z", splits: equal("e1", 12400) },
+  { id: "e2", trip_id: TRIP, op_type: "expense", paid_by: 100003, transfer_to: null, amount: 3600, currency: "RUB", description: "Электрички туда", items: null, category: "transport", split_type: "equal", expense_date: "2026-09-02", photo_url: null, client_id: null, created_by: 100003, created_at: "2026-09-02T12:10:00Z", splits: equal("e2", 3600) },
+  { id: "e3", trip_id: TRIP, op_type: "expense", paid_by: 100002, transfer_to: null, amount: 4200, currency: "RUB", description: "Продукты на маршрут", items: null, category: "groceries", split_type: "equal", expense_date: "2026-09-01", photo_url: null, client_id: null, created_by: 100002, created_at: "2026-09-01T20:40:00Z", splits: equal("e3", 4200) },
+  { id: "e4", trip_id: TRIP, op_type: "expense", paid_by: 100004, transfer_to: null, amount: 1800, currency: "RUB", description: "Газ и горелка", items: null, category: "gear", split_type: "equal", expense_date: "2026-09-01", photo_url: null, client_id: null, created_by: 100004, created_at: "2026-09-01T11:00:00Z", splits: equal("e4", 1800) },
+  { id: "e5", trip_id: TRIP, op_type: "transfer", paid_by: 100002, transfer_to: ME, amount: 2000, currency: "RUB", description: "", category: "transfer", split_type: "equal", expense_date: "2026-09-01", photo_url: null, items: null, client_id: null, created_by: 100002, created_at: "2026-09-01T18:00:00Z", splits: [] },
 ];
 let settlements: Settlement[] = [];
 let gear: GearItem[] = [
@@ -140,6 +140,22 @@ export async function demoApi<T>(path: string, method: string, body: unknown): P
     return r({ member: mem });
   }
   if (path === `/api/trips/${TRIP}/remind`) return r({ sent: 3 });
+  if (path === `/api/trips/${TRIP}/receipt` && method === "GET") return r({ enabled: true });
+  if (path === `/api/trips/${TRIP}/receipt` && method === "POST") {
+    await delay(1200);
+    return r({
+      photo_url: String(b.image),
+      receipt: {
+        merchant: "Трапезная Покровского монастыря", date: "2026-09-09", currency: "RUB", total: 1840, confidence: "high", note: null,
+        items: [
+          { title: "Щи постные", qty: 3, sum: 660 },
+          { title: "Пирог с капустой", qty: 5, sum: 600 },
+          { title: "Чай травяной", qty: 5, sum: 350 },
+          { title: "Квас", qty: 2, sum: 230 },
+        ],
+      },
+    });
+  }
   if (path === `/api/trips/${TRIP}/gear` && method === "POST") { const g: GearItem = { id: `g_${uid()}`, trip_id: TRIP, done: false, assignee: null, qty: null, sort_order: gear.length, ...(b as Partial<GearItem>) } as GearItem; gear = [...gear, g]; return r({ item: g }); }
   m = path.match(new RegExp(`^/api/trips/${TRIP}/gear/([^/]+)$`));
   if (m) {

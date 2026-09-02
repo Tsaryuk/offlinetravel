@@ -103,6 +103,7 @@ create table expenses (
   split_type   text not null default 'equal' check (split_type in ('equal', 'parts', 'amounts')),
   expense_date date not null default current_date,
   photo_url    text,
+  items        jsonb,
   client_id    text unique,
   created_by   bigint references users(tg_id),
   created_at   timestamptz not null default now(),
@@ -183,3 +184,10 @@ begin
     execute format('alter table %I enable row level security', t);
   end loop;
 end $$;
+
+-- ─── Storage: приватный бакет для фото чеков ──────────────────────────────
+-- Файлы кладутся с сервера (service role) по пути <trip_id>/<uuid>.jpg,
+-- читаются через подписанные ссылки из /api/files после проверки членства.
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('receipts', 'receipts', false, 5242880, array['image/jpeg', 'image/png', 'image/webp'])
+on conflict (id) do nothing;
