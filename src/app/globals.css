@@ -1,0 +1,100 @@
+@import "tailwindcss";
+
+/* ─── Дизайн-токены (визуальный язык Sigma) ─────────────────────────────── */
+@theme {
+  --font-sans: "General Sans", "Inter", system-ui, -apple-system, sans-serif;
+
+  --color-bg: #ffffff;
+  --color-surface: #f5f4f2;
+  --color-surface-2: #ebe9e6;
+  --color-line: rgba(128, 126, 125, 0.16);
+  --color-ink: #000000;
+  --color-ink-2: rgba(67, 66, 66, 0.6);
+  --color-ink-3: rgba(67, 66, 66, 0.36);
+  --color-accent: #ff5a00;
+  --color-accent-soft: #fff1ea;
+  --color-good: #1a7f4b;
+  --color-good-soft: #e9f5ee;
+  --color-bad: #d63a2f;
+  --color-bad-soft: #fdecea;
+  --color-inverse: #000000;
+  --color-inverse-fg: #ffffff;
+
+  --radius-card: 20px;
+  --radius-field: 14px;
+  --radius-pill: 40px;
+
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+.dark {
+  --color-bg: #0a0a0a;
+  --color-surface: #161616;
+  --color-surface-2: #232323;
+  --color-line: rgba(255, 255, 255, 0.12);
+  --color-ink: #ffffff;
+  --color-ink-2: rgba(255, 255, 255, 0.6);
+  --color-ink-3: rgba(255, 255, 255, 0.34);
+  --color-accent-soft: #2a1408;
+  --color-good: #3ecf7a;
+  --color-good-soft: #0f2418;
+  --color-bad: #ff6b5e;
+  --color-bad-soft: #2b1412;
+  --color-inverse: #ffffff;
+  --color-inverse-fg: #000000;
+}
+
+/* ─── База ──────────────────────────────────────────────────────────────── */
+@layer base {
+  html {
+    height: 100%;
+    background: var(--color-bg);
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+body {
+  min-height: 100%;
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.35;
+  color: var(--color-ink);
+  background: var(--color-bg);
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: "ss01", "cv11";
+  overscroll-behavior-y: none;
+}
+@layer base {
+  button, input, select, textarea { font: inherit; color: inherit; }
+  strong, b { font-weight: 600; }
+}
+.tabular { font-variant-numeric: tabular-nums; }
+
+/* Безопасные зоны (iOS, Telegram) */
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --nav-h: 64px;
+}
+
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes sheet-up {
+  from { transform: translateY(100%); }
+  to { transform: none; }
+}
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+.skeleton {
+  background: linear-gradient(90deg, var(--color-surface-2) 25%, var(--color-surface) 50%, var(--color-surface-2) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+}
