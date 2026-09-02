@@ -1,9 +1,9 @@
-const CACHE = 'ot-v2';
+const CACHE = 'ot-v3';
 const PRECACHE = [
   '/',
   '/index.html',
   '/manifest.json',
-  'https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap'
+  'https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600&display=swap'
 ];
 
 self.addEventListener('install', e => {
@@ -39,7 +39,7 @@ self.addEventListener('fetch', e => {
   }
 
   // Google Fonts resources — cache-first
-  if (url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com') {
+  if (url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com' || url.hostname === 'api.fontshare.com' || url.hostname === 'cdn.fontshare.com') {
     e.respondWith(
       caches.open(CACHE).then(c =>
         c.match(e.request).then(r => r || fetch(e.request).then(res => {
@@ -61,6 +61,7 @@ self.addEventListener('fetch', e => {
         }
         return res;
       }).catch(() => caches.match(e.request).then(r => r || new Response('[]', {
+        status: 503,
         headers: { 'Content-Type': 'application/json' }
       })))
     );
