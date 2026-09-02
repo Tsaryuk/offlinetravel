@@ -38,6 +38,7 @@ export interface User {
   city: string | null;
   bio: string | null;
   dietary: string | null;
+  pay_note: string | null;
 }
 
 export interface Trip {
@@ -137,6 +138,19 @@ export interface Settlement {
   created_at: string;
 }
 
+export interface GearItem {
+  id: string;
+  trip_id: string;
+  title: string;
+  qty: string | null;
+  assignee: number | null;
+  done: boolean;
+  sort_order: number;
+}
+
+/** Курс валюты к базовой валюте поездки: 1 единица = rate базовых. */
+export type Rates = Record<string, number>;
+
 /** Всё, что нужно экрану поездки, одним запросом. */
 export interface TripBundle {
   trip: Trip;
@@ -146,6 +160,8 @@ export interface TripBundle {
   schedule: ScheduleEvent[];
   expenses: Expense[];
   settlements: Settlement[];
+  gear: GearItem[];
+  rates: Rates;
 }
 
 // ─── Схемы входных данных ─────────────────────────────────────────────────
@@ -223,6 +239,15 @@ export const ProfileInput = z.object({
   city: z.string().trim().max(60).optional().nullable(),
   bio: z.string().trim().max(300).optional().nullable(),
   dietary: z.string().trim().max(200).optional().nullable(),
+  pay_note: z.string().trim().max(120).optional().nullable(),
+});
+
+export const GearInput = z.object({
+  title: z.string().trim().min(1).max(120),
+  qty: z.string().trim().max(40).optional().nullable(),
+  assignee: tgId.optional().nullable(),
+  done: z.boolean().default(false),
+  sort_order: z.number().int().default(0),
 });
 
 export type TripInputT = z.infer<typeof TripInput>;
@@ -232,3 +257,4 @@ export type PlaceInputT = z.infer<typeof PlaceInput>;
 export type ScheduleInputT = z.infer<typeof ScheduleInput>;
 export type MessageInputT = z.infer<typeof MessageInput>;
 export type ProfileInputT = z.infer<typeof ProfileInput>;
+export type GearInputT = z.infer<typeof GearInput>;

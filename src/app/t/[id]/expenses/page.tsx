@@ -13,7 +13,6 @@ import { ExpenseDetail } from "@/components/trip/ExpenseDetail";
 import { BalanceView } from "@/components/trip/BalanceView";
 import { fmtMoney } from "@/lib/money";
 import { relativeDayLabel } from "@/lib/dates";
-import { toBase } from "@/lib/balances";
 import { CATEGORIES, type Expense } from "@/lib/types";
 
 export default function ExpensesPage() {
@@ -33,12 +32,21 @@ function ExpensesInner() {
     let total = 0;
     for (const e of t.expenses) {
       if (e.op_type !== "expense") continue;
-      total += toBase(e.amount, e.currency, cur, {});
+      total += t.inBase(e.amount, e.currency);
       const s = e.splits.find((x) => x.tg_id === t.me.tg_id);
-      if (s) mine += toBase(s.amount, e.currency, cur, {});
+      if (s) mine += t.inBase(s.amount, e.currency);
     }
     return { mine, total };
-  }, [t.expenses, t.me.tg_id, cur]);
+  }, [t]);
+
+  const byCat = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const e of t.expenses) {
+      if (e.op_type !== "expense") continue;
+      m.set(e.category, (m.get(e.category) ?? 0) + t.inBase(e.amount, e.currency));
+    }
+    return [...m.entries()].sort((a, b) => b[1] - a[1]);
+  }, [t]);
 
   const groups = useMemo(() => {
     const map = new Map<string, Expense[]>();
@@ -65,6 +73,23 @@ function ExpensesInner() {
             <StatTile value={fmtMoney(mine, cur)} label="Моя доля" />
             <StatTile value={fmtMoney(total, cur)} label="Общие расходы" />
           </div>
+
+          {byCat.length > 1 && (
+            <div className="mb-2">
+              {byCat.map(([id, sum]) => {
+                const c = CATEGORIES.find((x) => x.id === id);
+                const pct = total ? Math.round((sum / total) * 100) : 0;
+                return (
+                  <div key={id} className="flex items-center gap-3 py-1.5">
+                    <div className="w-6 text-center text-[15px]">{c?.icon ?? "📦"}</div>
+                    <div className="w-[118px] shrink-0 truncate text-[13px] text-ink-2">{c?.label ?? id}</div>
+                    <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface"><div className="h-full rounded-full bg-inverse" style={{ width: `${pct}%` }} /></div>
+                    <div className="tabular w-[72px] shrink-0 text-right text-[13px] font-medium">{fmtMoney(sum, cur)}</div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
           {!t.expenses.length && <EmptyState icon="💸" title="Пока нет расходов" text="Добавьте первый — и приложение само посчитает, кто кому должен." action={<Button size="sm" onClick={() => setAddOpen(true)}>Добавить расход</Button>} />}
 

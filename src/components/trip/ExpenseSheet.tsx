@@ -120,6 +120,14 @@ export function ExpenseSheet({ open, onClose, expense }: { open: boolean; onClos
         </Select>
       </div>
 
+      {cur !== t.trip.base_currency && num > 0 && (
+        <div className={`-mt-1 mb-2.5 text-[12px] ${t.hasRate(cur) ? "text-ink-2" : "text-bad"}`}>
+          {t.hasRate(cur)
+            ? `≈ ${fmtMoney(t.inBase(num, cur), t.trip.base_currency)} по курсу ЦБ`
+            : `Нет курса ${cur} → ${t.trip.base_currency}: в балансе сумма будет учтена 1:1`}
+        </div>
+      )}
+
       <div className="mb-5 flex gap-2">
         <Select value={payer} onChange={(e) => setPayer(Number(e.target.value))} className="min-w-0 flex-1" aria-label={op === "transfer" ? "Кто переводит" : "Кто платил"}>
           {members.map((m) => <option key={m.tg_id} value={m.tg_id}>{t.name(m.tg_id)}{m.tg_id === t.me.tg_id ? " (я)" : ""}</option>)}

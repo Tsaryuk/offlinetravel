@@ -12,7 +12,6 @@ import { ScheduleList } from "@/components/trip/ScheduleList";
 import { TripForm } from "@/components/trip/TripForm";
 import { fmtMoney } from "@/lib/money";
 import { dateRange, daysBetween, localISO, phaseLabel, plural, tripPhase } from "@/lib/dates";
-import { toBase } from "@/lib/balances";
 import { shareInvite } from "@/lib/client/share";
 
 export default function HomePage() {
@@ -25,8 +24,8 @@ export default function HomePage() {
   const nDays = daysBetween(t.trip.start_date, t.trip.end_date) + 1;
   const myBal = Math.round(t.balances[t.me.tg_id] ?? 0);
   const total = useMemo(
-    () => t.expenses.filter((e) => e.op_type === "expense").reduce((s, e) => s + toBase(e.amount, e.currency, t.trip.base_currency, {}), 0),
-    [t.expenses, t.trip.base_currency],
+    () => t.expenses.filter((e) => e.op_type === "expense").reduce((s, e) => s + t.inBase(e.amount, e.currency), 0),
+    [t],
   );
   const cur = t.trip.base_currency;
 
@@ -76,12 +75,33 @@ export default function HomePage() {
         <Button size="lg" variant="ghost" onClick={() => router.push(`/t/${t.trip.id}/expenses?tab=balance`)}>Долги</Button>
       </div>
 
+      <GearCard />
+
       <SectionTitle className="mt-7">Расписание</SectionTitle>
       <ScheduleList initialDay={phase.kind === "during" ? localISO() : t.trip.start_date} />
 
       <ExpenseSheet open={addOpen} onClose={() => setAddOpen(false)} />
       {t.isAdmin && editTrip && <TripForm open onClose={() => setEditTrip(false)} trip={t.trip} />}
     </>
+  );
+}
+
+function GearCard() {
+  const t = useTripCtx();
+  const router = useRouter();
+  const total = t.gear.length;
+  const assigned = t.gear.filter((g) => g.assignee).length;
+  const packed = t.gear.filter((g) => g.done).length;
+  const sub = !total ? "Список пуст — кто что берёт?" : `${assigned} из ${total} распределено · ${packed} собрано`;
+  return (
+    <Card className="mt-2 flex cursor-pointer items-center gap-3.5 px-[18px] py-4 active:bg-surface-2" onClick={() => router.push(`/t/${t.trip.id}/gear`)}>
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-bg text-[18px]">🎒</div>
+      <div className="min-w-0 flex-1">
+        <div className="text-[15px] font-medium tracking-[-0.01em]">Снаряжение</div>
+        <div className="mt-0.5 text-[12.5px] text-ink-2">{sub}</div>
+      </div>
+      <div className="text-[18px] text-ink-3">›</div>
+    </Card>
   );
 }
 

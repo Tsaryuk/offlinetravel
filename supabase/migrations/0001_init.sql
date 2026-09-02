@@ -15,6 +15,7 @@ create table users (
   city         text,
   bio          text,
   dietary      text,
+  pay_note     text,
   created_at   timestamptz not null default now(),
   last_seen    timestamptz
 );
@@ -143,6 +144,27 @@ create table documents (
 );
 create index documents_trip_idx on documents(trip_id, created_at desc);
 
+-- ─── Снаряжение: кто что несёт ────────────────────────────────────────────
+create table gear_items (
+  id          uuid primary key default gen_random_uuid(),
+  trip_id     uuid not null references trips(id) on delete cascade,
+  title       text not null,
+  qty         text,
+  assignee    bigint references users(tg_id) on delete set null,
+  done        boolean not null default false,
+  sort_order  int not null default 0,
+  created_by  bigint references users(tg_id),
+  created_at  timestamptz not null default now()
+);
+create index gear_trip_idx on gear_items(trip_id, sort_order);
+
+-- ─── Курсы валют к рублю (кэш ЦБ РФ) ──────────────────────────────────────
+create table fx_rates (
+  code       text primary key,
+  rub        numeric(14,6) not null,
+  fetched_at timestamptz not null default now()
+);
+
 -- ─── Коды входа через бота (для открытия по обычной ссылке) ───────────────
 create table auth_codes (
   code       text primary key,
@@ -156,7 +178,7 @@ create table auth_codes (
 do $$
 declare t text;
 begin
-  foreach t in array array['users','trips','members','places','schedule','messages','expenses','splits','settlements','documents','auth_codes']
+  foreach t in array array['users','trips','members','places','schedule','messages','expenses','splits','settlements','documents','auth_codes','gear_items','fx_rates']
   loop
     execute format('alter table %I enable row level security', t);
   end loop;

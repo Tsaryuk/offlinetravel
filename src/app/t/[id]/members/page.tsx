@@ -67,6 +67,7 @@ function MemberSheet({ member: m, onClose }: { member: Member; onClose: () => vo
   const u = m.user;
   const rows = [
     ["Телефон", u?.phone ? <a href={`tel:${u.phone}`} className="underline underline-offset-4">{u.phone}</a> : null],
+    ["Перевод", u?.pay_note],
     ["Город", u?.city],
     ["О себе", u?.bio],
     ["Питание", u?.dietary],
@@ -118,13 +119,14 @@ function ProfileEdit({ member: m, onClose }: { member: Member; onClose: () => vo
   const [city, setCity] = useState(m.user?.city ?? "");
   const [bio, setBio] = useState(m.user?.bio ?? "");
   const [dietary, setDietary] = useState(m.user?.dietary ?? "");
+  const [payNote, setPayNote] = useState(m.user?.pay_note ?? "");
   const [busy, setBusy] = useState(false);
 
   async function save() {
     setBusy(true);
     try {
       await Promise.all([
-        api("/api/me", { method: "PATCH", body: { phone: phone || null, city: city || null, bio: bio || null, dietary: dietary || null } }),
+        api("/api/me", { method: "PATCH", body: { phone: phone || null, city: city || null, bio: bio || null, dietary: dietary || null, pay_note: payNote || null } }),
         api(`/api/trips/${t.trip.id}/members/${m.tg_id}`, { method: "PATCH", body: { display_name: name.trim() } }),
       ]);
       qc.invalidateQueries({ queryKey: ["trip", t.trip.id] });
@@ -141,7 +143,8 @@ function ProfileEdit({ member: m, onClose }: { member: Member; onClose: () => vo
   return (
     <Sheet open onClose={onClose} title="Профиль">
       <FieldGroup label="Имя в поездке"><Input value={name} onChange={(e) => setName(e.target.value)} /></FieldGroup>
-      <FieldGroup label="Телефон"><Input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+7 …" /></FieldGroup>
+      <FieldGroup label="Телефон (для СБП)"><Input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+7 …" /></FieldGroup>
+      <FieldGroup label="Куда переводить"><Input value={payNote} onChange={(e) => setPayNote(e.target.value)} placeholder="Т-Банк по номеру, Сбер…" /></FieldGroup>
       <FieldGroup label="Город"><Input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Откуда вы" /></FieldGroup>
       <FieldGroup label="О себе"><Textarea rows={2} value={bio} onChange={(e) => setBio(e.target.value)} placeholder="Пару слов" /></FieldGroup>
       <FieldGroup label="Питание"><Input value={dietary} onChange={(e) => setDietary(e.target.value)} placeholder="Аллергии, вегетарианство…" /></FieldGroup>

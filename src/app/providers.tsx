@@ -54,7 +54,8 @@ export function Providers({ children }: { children: ReactNode }) {
   return (
     <PersistQueryClientProvider
       client={client}
-      persistOptions={{ persister, maxAge: 1000 * 60 * 60 * 24 * 7 }}
+      // buster: при смене формы данных старый кэш отбрасывается целиком.
+      persistOptions={{ persister, maxAge: 1000 * 60 * 60 * 24 * 7, buster: "2026-09-02-gear-rates" }}
       onSuccess={() => {
         // После восстановления кэша — доотправляем то, что осталось в очереди с прошлого раза.
         client.resumePausedMutations().then(() => client.invalidateQueries());

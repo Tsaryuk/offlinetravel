@@ -1,7 +1,8 @@
 import { db } from "./db";
 import { ApiError } from "./api";
 import type { TgUser } from "./telegram";
-import type { Expense, Member, Split, Trip, TripBundle, User } from "./types";
+import type { Expense, GearItem, Member, Split, Trip, TripBundle, User } from "./types";
+import { ratesFor } from "./rates";
 
 function must<T>(res: { data: T | null; error: { message: string } | null }, what: string): T {
   if (res.error) throw new ApiError(500, `${what}: ${res.error.message}`);
@@ -67,7 +68,7 @@ export async function joinByCode(tgId: number, code: string): Promise<Trip> {
 }
 
 export async function loadBundle(tripId: string, tgId: number): Promise<TripBundle> {
-  const [trip, membersRes, places, schedule, expensesRes, splitsRes, settlements] = await Promise.all([
+  const [trip, membersRes, places, schedule, expensesRes, splitsRes, settlements, gear] = await Promise.all([
     db().from("trips").select("*").eq("id", tripId).maybeSingle(),
     db().from("members").select("*, user:users(*)").eq("trip_id", tripId).order("joined_at"),
     db().from("places").select("*").eq("trip_id", tripId).order("sort_order").order("name"),
@@ -75,6 +76,7 @@ export async function loadBundle(tripId: string, tgId: number): Promise<TripBund
     db().from("expenses").select("*").eq("trip_id", tripId).order("expense_date", { ascending: false }).order("created_at", { ascending: false }),
     db().from("splits").select("*, expense:expenses!inner(trip_id)").eq("expense.trip_id", tripId),
     db().from("settlements").select("*").eq("trip_id", tripId).order("created_at", { ascending: false }),
+    db().from("gear_items").select("*").eq("trip_id", tripId).order("sort_order").order("created_at"),
   ]);
 
   const members = must(membersRes, "members") as Member[];
@@ -93,14 +95,17 @@ export async function loadBundle(tripId: string, tgId: number): Promise<TripBund
     splits: splitsByExpense.get(e.id) ?? [],
   }));
 
+  const tripRow = must(trip, "trip") as Trip;
   return {
-    trip: must(trip, "trip") as Trip,
+    trip: tripRow,
     me: { tg_id: tgId, role: me.role },
     members,
     places: must(places, "places"),
     schedule: must(schedule, "schedule"),
     expenses,
     settlements: (must(settlements, "settlements") as Array<Record<string, unknown>>).map((s) => ({ ...s, amount: Number(s.amount) })) as TripBundle["settlements"],
+    gear: must(gear, "gear") as GearItem[],
+    rates: await ratesFor(tripRow.base_currency),
   };
 }
 

@@ -1,9 +1,9 @@
-import type { Expense, Settlement } from "./types";
+import type { Expense, Rates, Settlement } from "./types";
 
 // Логика балансов перенесена из v1 (calcBalances / calcSettlements) без изменений
 // в семантике: положительный баланс — участнику должны, отрицательный — он должен.
 
-export type Rates = Record<string, number>; // курс валюты к базовой: 1 единица = rate базовых
+export type { Rates };
 
 export function toBase(amount: number, currency: string, base: string, rates: Rates): number {
   if (currency === base) return amount;

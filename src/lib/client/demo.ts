@@ -4,17 +4,17 @@
 // Нужен для просмотра интерфейса до подключения базы. В прод-сборке не участвует.
 
 import { HttpError } from "./api";
-import type { Expense, Member, Message, Place, ScheduleEvent, Settlement, Trip, TripBundle, User } from "@/lib/types";
+import type { Expense, GearItem, Member, Message, Place, ScheduleEvent, Settlement, Trip, TripBundle, User } from "@/lib/types";
 
 const ME = 100001;
 const TRIP = "demo-lavra";
 
 const users: Record<number, User> = {
-  [ME]: { tg_id: ME, first_name: "Денис", last_name: null, username: "tsaryuk", photo_url: null, phone: "+7 900 111-22-33", city: "Москва", bio: "Организатор", dietary: null },
-  100002: { tg_id: 100002, first_name: "Аня", last_name: null, username: "anya", photo_url: null, phone: null, city: "Питер", bio: "Снимает на плёнку", dietary: "Вегетарианка" },
-  100003: { tg_id: 100003, first_name: "Марк", last_name: null, username: "mark", photo_url: null, phone: null, city: "Мурманск", bio: null, dietary: null },
-  100004: { tg_id: 100004, first_name: "Лиза", last_name: null, username: "liza", photo_url: null, phone: null, city: "Казань", bio: null, dietary: "Без глютена" },
-  100005: { tg_id: 100005, first_name: "Игорь", last_name: null, username: null, photo_url: null, phone: null, city: null, bio: null, dietary: null },
+  [ME]: { tg_id: ME, first_name: "Денис", last_name: null, username: "tsaryuk", photo_url: null, phone: "+7 900 111-22-33", city: "Москва", bio: "Организатор", dietary: null, pay_note: "Т-Банк по номеру" },
+  100002: { tg_id: 100002, first_name: "Аня", last_name: null, username: "anya", photo_url: null, phone: null, city: "Питер", bio: "Снимает на плёнку", dietary: "Вегетарианка", pay_note: "Сбер" },
+  100003: { tg_id: 100003, first_name: "Марк", last_name: null, username: "mark", photo_url: null, phone: null, city: "Мурманск", bio: null, dietary: null, pay_note: null },
+  100004: { tg_id: 100004, first_name: "Лиза", last_name: null, username: "liza", photo_url: null, phone: null, city: "Казань", bio: null, dietary: "Без глютена", pay_note: null },
+  100005: { tg_id: 100005, first_name: "Игорь", last_name: null, username: null, photo_url: null, phone: null, city: null, bio: null, dietary: null, pay_note: null },
 };
 
 const trip: Trip = {
@@ -57,6 +57,13 @@ let expenses: Expense[] = [
   { id: "e5", trip_id: TRIP, op_type: "transfer", paid_by: 100002, transfer_to: ME, amount: 2000, currency: "RUB", description: "", category: "transfer", split_type: "equal", expense_date: "2026-09-01", photo_url: null, client_id: null, created_by: 100002, created_at: "2026-09-01T18:00:00Z", splits: [] },
 ];
 let settlements: Settlement[] = [];
+let gear: GearItem[] = [
+  { id: "g1", trip_id: TRIP, title: "Палатка", qty: "2", assignee: ME, done: true, sort_order: 0 },
+  { id: "g2", trip_id: TRIP, title: "Котелок", qty: null, assignee: null, done: false, sort_order: 1 },
+  { id: "g3", trip_id: TRIP, title: "Горелка и газ", qty: null, assignee: 100004, done: false, sort_order: 2 },
+  { id: "g4", trip_id: TRIP, title: "Аптечка", qty: null, assignee: 100002, done: true, sort_order: 3 },
+];
+const rates = { RUB: 1, USD: 81.4, EUR: 94.9, THB: 2.5, TRY: 1.95, GEL: 30.1 };
 let messages: Message[] = [
   { id: "m1", trip_id: TRIP, author_tg_id: 100003, author_name: undefined, text: "Прогноз на 8-е: +14 и без дождя, идём", is_pinned: false, client_id: null, created_at: "2026-09-01T18:00:00Z" } as Message,
   { id: "m2", trip_id: TRIP, author_tg_id: ME, text: "Сбор в 7:40 у памятника, электричка в 8:12. Не опаздывайте", is_pinned: true, client_id: null, created_at: "2026-09-01T19:20:00Z" },
@@ -68,7 +75,7 @@ const delay = (ms = 250) => new Promise((r) => setTimeout(r, ms));
 const uid = () => Math.random().toString(36).slice(2, 10);
 
 function bundle(): TripBundle {
-  return { trip, me: { tg_id: ME, role: "admin" }, members, places, schedule, expenses, settlements };
+  return { trip, me: { tg_id: ME, role: "admin" }, members, places, schedule, expenses, settlements, gear, rates };
 }
 
 export async function demoApi<T>(path: string, method: string, body: unknown): Promise<T> {
@@ -131,6 +138,14 @@ export async function demoApi<T>(path: string, method: string, body: unknown): P
     if (mem && method === "PATCH") Object.assign(mem, b);
     if (method === "DELETE") { const i = members.findIndex((x) => x.tg_id === Number(m![1])); if (i >= 0) members.splice(i, 1); }
     return r({ member: mem });
+  }
+  if (path === `/api/trips/${TRIP}/remind`) return r({ sent: 3 });
+  if (path === `/api/trips/${TRIP}/gear` && method === "POST") { const g: GearItem = { id: `g_${uid()}`, trip_id: TRIP, done: false, assignee: null, qty: null, sort_order: gear.length, ...(b as Partial<GearItem>) } as GearItem; gear = [...gear, g]; return r({ item: g }); }
+  m = path.match(new RegExp(`^/api/trips/${TRIP}/gear/([^/]+)$`));
+  if (m) {
+    if (method === "DELETE") { gear = gear.filter((g) => g.id !== m![1]); return r({ deleted: m[1] }); }
+    gear = gear.map((g) => (g.id === m![1] ? { ...g, ...(b as Partial<GearItem>) } : g));
+    return r({ item: gear.find((g) => g.id === m![1]) });
   }
   if (path === "/api/me" && method === "PATCH") { Object.assign(users[ME], b); return r({ user: users[ME] }); }
   throw new HttpError(404, `Демо: нет обработчика для ${method} ${path}`);
