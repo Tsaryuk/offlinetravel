@@ -32,8 +32,14 @@ export function Login({ next }: { next?: string }) {
         return;
       }
       try {
-        await api("/api/auth/telegram", { method: "POST", body: { initData: raw } });
-        if (!cancelled) finish();
+        const r = await api<{ tripId?: string | null }>("/api/auth/telegram", { method: "POST", body: { initData: raw } });
+        if (cancelled) return;
+        if (r.tripId) {
+          router.replace(`/t/${r.tripId}`);
+          router.refresh();
+          return;
+        }
+        finish();
       } catch (e) {
         if (cancelled) return;
         setError((e as Error).message);

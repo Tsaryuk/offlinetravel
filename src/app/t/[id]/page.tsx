@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTripCtx } from "@/components/trip/TripContext";
 import { PageHeader, IconButton } from "@/components/ui/PageHeader";
@@ -12,13 +12,16 @@ import { ScheduleList } from "@/components/trip/ScheduleList";
 import { TripForm } from "@/components/trip/TripForm";
 import { fmtMoney } from "@/lib/money";
 import { dateRange, daysBetween, localISO, phaseLabel, plural, tripPhase } from "@/lib/dates";
-import { shareInvite } from "@/lib/client/share";
+import { InviteSheet } from "@/components/trip/InviteSheet";
+import { InstallGuide, isStandalone } from "@/components/InstallGuide";
 
 export default function HomePage() {
   const t = useTripCtx();
   const router = useRouter();
   const [addOpen, setAddOpen] = useState(false);
   const [editTrip, setEditTrip] = useState(false);
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [installOpen, setInstallOpen] = useState(false);
 
   const phase = tripPhase(t.trip.start_date, t.trip.end_date);
   const nDays = daysBetween(t.trip.start_date, t.trip.end_date) + 1;
@@ -56,7 +59,7 @@ export default function HomePage() {
             <AvatarStack members={t.members} />
             <span className="text-[13px] text-ink-2">{t.members.length} {plural(t.members.length, "участник", "участника", "участников")}</span>
           </div>
-          <button type="button" className="text-[13px] font-medium underline underline-offset-4" onClick={() => shareInvite(t.trip.name, t.trip.invite_code)}>Пригласить</button>
+          <button type="button" className="text-[13px] font-medium underline underline-offset-4" onClick={() => setInviteOpen(true)}>Пригласить</button>
         </div>
       </Card>
 
@@ -80,9 +83,36 @@ export default function HomePage() {
       <SectionTitle className="mt-7">Расписание</SectionTitle>
       <ScheduleList initialDay={phase.kind === "during" ? localISO() : t.trip.start_date} />
 
+      <InstallBanner onOpen={() => setInstallOpen(true)} />
+
       <ExpenseSheet open={addOpen} onClose={() => setAddOpen(false)} />
+      <InviteSheet open={inviteOpen} onClose={() => setInviteOpen(false)} />
+      <InstallGuide open={installOpen} onClose={() => setInstallOpen(false)} />
       {t.isAdmin && editTrip && <TripForm open onClose={() => setEditTrip(false)} trip={t.trip} />}
     </>
+  );
+}
+
+/** Ненавязчивая подсказка про установку — прячется, если уже установлено или скрыто. */
+function InstallBanner({ onOpen }: { onOpen: () => void }) {
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    queueMicrotask(() => {
+      if (isStandalone()) return;
+      if (localStorage.getItem("ot_install_hidden") === "1") return;
+      setShow(true);
+    });
+  }, []);
+  if (!show) return null;
+  return (
+    <Card className="mt-2 flex items-center gap-3 px-[18px] py-3.5">
+      <div className="text-[18px]">📲</div>
+      <button type="button" className="min-w-0 flex-1 text-left" onClick={onOpen}>
+        <div className="text-[14px] font-medium">Поставить на экран телефона</div>
+        <div className="mt-0.5 text-[12.5px] text-ink-2">Чтобы работало без связи в походе</div>
+      </button>
+      <button type="button" aria-label="Скрыть" className="shrink-0 px-2 text-[16px] text-ink-3" onClick={() => { localStorage.setItem("ot_install_hidden", "1"); setShow(false); }}>×</button>
+    </Card>
   );
 }
 

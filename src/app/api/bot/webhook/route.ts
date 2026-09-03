@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { env } from "@/lib/env";
 import { db } from "@/lib/db";
-import { upsertUser } from "@/lib/repo";
+import { joinByCode, upsertUser } from "@/lib/repo";
 import { sendMessage } from "@/lib/telegram";
 
 // Вебхук Telegram. Telegram шлёт сюда обновления; отвечаем всегда 200,
@@ -39,6 +39,10 @@ export async function POST(req: Request) {
   return NextResponse.json({ ok: true });
 }
 
+function escapeHtml(v: string): string {
+  return v.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
 async function handleMessage(
   chatId: number,
   from: NonNullable<TgUpdate["message"]>["from"] & object,
@@ -72,11 +76,24 @@ async function handleMessage(
       return;
     }
 
-    // /start join_<code> — приглашение в поездку по ссылке из бота
+    // /start join_<code> — зачисляем в поездку сразу, не заставляя нажимать ещё одну кнопку
     const joinCode = arg?.startsWith("join_") ? arg.slice(5) : null;
-    const url = joinCode ? `${appUrl}/join/${joinCode}` : appUrl;
+    if (joinCode) {
+      try {
+        const trip = await joinByCode(from.id, joinCode);
+        await sendMessage(chatId, `Вы в поездке <b>${escapeHtml(trip.name)}</b>. Открывайте — расписание, места и расходы уже там.`, {
+          inline_keyboard: [[{ text: "Открыть поездку", web_app: { url: `${appUrl}/t/${trip.id}` } }]],
+        });
+      } catch {
+        await sendMessage(chatId, "Приглашение не подошло — возможно, ссылка устарела. Попросите организатора прислать новую.", {
+          inline_keyboard: [[{ text: "Открыть приложение", web_app: { url: appUrl } }]],
+        });
+      }
+      return;
+    }
+
     await sendMessage(chatId, "Offline.Travel — расписание, места и общие расходы поездки в одном месте.", {
-      inline_keyboard: [[{ text: joinCode ? "Присоединиться к поездке" : "Открыть приложение", web_app: { url } }]],
+      inline_keyboard: [[{ text: "Открыть приложение", web_app: { url: appUrl } }]],
     });
     return;
   }

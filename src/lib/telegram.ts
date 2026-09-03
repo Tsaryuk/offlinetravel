@@ -7,6 +7,8 @@ export interface TgUser {
   lastName?: string;
   username?: string;
   photoUrl?: string;
+  /** Параметр из прямой ссылки на Mini App (?startapp=…). */
+  startParam?: string;
 }
 
 const INIT_DATA_MAX_AGE_SEC = 60 * 60 * 24; // сутки — Telegram выдаёт initData при каждом открытии
@@ -26,6 +28,7 @@ export function verifyInitData(raw: string): TgUser {
     lastName: u.last_name ?? undefined,
     username: u.username ?? undefined,
     photoUrl: u.photo_url ?? undefined,
+    startParam: data.start_param ?? undefined,
   };
 }
 

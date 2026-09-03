@@ -6,7 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useTripCtx } from "@/components/trip/TripContext";
 import { useTripMutation } from "@/lib/client/hooks";
 import { api } from "@/lib/client/api";
-import { shareInvite } from "@/lib/client/share";
+import { InviteSheet } from "@/components/trip/InviteSheet";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { Avatar } from "@/components/ui/Avatar";
@@ -19,9 +19,10 @@ import type { Member } from "@/lib/types";
 export default function MembersPage() {
   const t = useTripCtx();
   const [sel, setSel] = useState<Member | null>(null);
+  const [inviteOpen, setInviteOpen] = useState(false);
   return (
     <>
-      <PageHeader title={`Участники`} sub={`${t.members.length} чел.`} right={<Button size="sm" variant="ghost" onClick={() => shareInvite(t.trip.name, t.trip.invite_code)}>Пригласить</Button>} />
+      <PageHeader title={`Участники`} sub={`${t.members.length} чел.`} right={<Button size="sm" variant="ghost" onClick={() => setInviteOpen(true)}>Пригласить</Button>} />
       <div className="flex flex-col gap-1.5">
         {t.members.map((m) => (
           <Card key={m.tg_id} className="flex cursor-pointer items-center gap-3.5 px-[18px] py-3.5 active:bg-surface-2" onClick={() => setSel(m)}>
@@ -38,6 +39,7 @@ export default function MembersPage() {
         ))}
       </div>
       {sel && <MemberSheet member={t.members.find((x) => x.tg_id === sel.tg_id) ?? sel} onClose={() => setSel(null)} />}
+      <InviteSheet open={inviteOpen} onClose={() => setInviteOpen(false)} />
     </>
   );
 }

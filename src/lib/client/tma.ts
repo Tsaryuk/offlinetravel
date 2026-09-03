@@ -51,6 +51,25 @@ export function rawInitData(): string | null {
   }
 }
 
+/**
+ * Показывает кнопку «назад» в шапке Telegram и вызывает cb по нажатию.
+ * Возвращает функцию отписки. Вне Telegram — пустышка, но Escape и тап по фону
+ * продолжают работать.
+ */
+export function onBackButton(cb: () => void): () => void {
+  if (!inside) return () => {};
+  try {
+    backButton.show();
+    const off = backButton.onClick(cb);
+    return () => {
+      try { off(); } catch { /* ignore */ }
+      try { backButton.hide(); } catch { /* ignore */ }
+    };
+  } catch {
+    return () => {};
+  }
+}
+
 export function haptic(kind: "light" | "medium" | "success" | "error" = "light"): void {
   try {
     if (!inside) return;
