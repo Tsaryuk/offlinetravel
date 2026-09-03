@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { useMe } from "@/lib/client/hooks";
 import { api } from "@/lib/client/api";
@@ -13,19 +13,58 @@ import { TripForm } from "@/components/trip/TripForm";
 import type { Trip } from "@/lib/types";
 
 export default function TripsPage() {
+  return <Suspense><TripsInner /></Suspense>;
+}
+
+/** Запоминаем, где человек был, чтобы следующий запуск открывался сразу там. */
+export const LAST_TRIP_KEY = "ot_last_trip";
+
+/**
+ * Куда прыгнуть вместо списка: единственная поездка или та, что открывали в прошлый раз.
+ * `?all=1` отключает переход — так работает кнопка «Все поездки».
+ */
+function pickTrip(showAll: boolean, trips: Array<{ id: string }> | undefined): string | null {
+  if (showAll || !trips?.length) return null;
+  if (trips.length === 1) return trips[0].id;
+  if (typeof localStorage === "undefined") return null;
+  const last = localStorage.getItem(LAST_TRIP_KEY);
+  return trips.find((t) => t.id === last)?.id ?? null;
+}
+
+function TripsInner() {
   const me = useMe();
+  const sp = useSearchParams();
+  const showAll = sp.get("all") === "1";
   const router = useRouter();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
 
+  // Одна поездка или уже открытая раньше — заходим прямо в неё:
+  // в походе лишний экран со списком только мешает.
+  const jumpTo = pickTrip(showAll, me.data?.trips);
+
+  useEffect(() => {
+    if (jumpTo) router.replace(`/t/${jumpTo}`);
+  }, [jumpTo, router]);
+
   async function logout() {
     await api("/api/auth/logout", { method: "POST" });
     qc.clear();
+    localStorage.removeItem(LAST_TRIP_KEY);
     router.replace("/");
     router.refresh();
   }
 
   const trips = me.data?.trips ?? [];
+
+  if (jumpTo) {
+    return (
+      <main className="mx-auto max-w-lg px-5 pt-8">
+        <div className="mb-5 h-8 w-2/3 rounded-lg skeleton" />
+        <div className="h-36 rounded-card skeleton" />
+      </main>
+    );
+  }
 
   return (
     <main className="mx-auto max-w-lg px-5 pb-28">

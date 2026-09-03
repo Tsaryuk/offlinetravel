@@ -3,6 +3,7 @@ import { ApiError } from "./api";
 import type { TgUser } from "./telegram";
 import type { Expense, GearItem, Member, Split, Trip, TripBundle, User } from "./types";
 import { ratesFor } from "./rates";
+import { syncAvatar } from "./avatar";
 
 function must<T>(res: { data: T | null; error: { message: string } | null }, what: string): T {
   if (res.error) throw new ApiError(500, `${what}: ${res.error.message}`);
@@ -13,6 +14,8 @@ function must<T>(res: { data: T | null; error: { message: string } | null }, wha
 // ─── Пользователи ─────────────────────────────────────────────────────────
 
 export async function upsertUser(u: TgUser): Promise<User> {
+  // photo_url не трогаем: там лежит наша выгруженная копия, а ссылка из Telegram
+  // живёт недолго. Обновляет её только syncUserAvatar.
   const res = await db()
     .from("users")
     .upsert(
@@ -21,7 +24,6 @@ export async function upsertUser(u: TgUser): Promise<User> {
         first_name: u.firstName,
         last_name: u.lastName ?? null,
         username: u.username ?? null,
-        photo_url: u.photoUrl ?? null,
         last_seen: new Date().toISOString(),
       },
       { onConflict: "tg_id" },
@@ -29,6 +31,19 @@ export async function upsertUser(u: TgUser): Promise<User> {
     .select("*")
     .single();
   return must(res, "users.upsert");
+}
+
+/** Подтягивает аватарку из Telegram в наш storage. Тихо ничего не делает, если фото нет. */
+export async function syncUserAvatar(user: User): Promise<string | null> {
+  const fresh = await syncAvatar(user.tg_id, user.photo_file_id ?? null);
+  if (!fresh) return null;
+  const res = await db()
+    .from("users")
+    .update({ photo_url: fresh.url, photo_file_id: fresh.fileId })
+    .eq("tg_id", user.tg_id)
+    .select("photo_url")
+    .single();
+  return res.error ? null : (res.data.photo_url as string);
 }
 
 export async function getUser(tgId: number): Promise<User> {

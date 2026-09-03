@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { handler, ok, parseBody, ApiError } from "@/lib/api";
-import { joinByCode, upsertUser } from "@/lib/repo";
+import { joinByCode, syncUserAvatar, upsertUser } from "@/lib/repo";
 import { setSessionCookie } from "@/lib/session";
 import { verifyInitData } from "@/lib/telegram";
 
@@ -17,6 +17,8 @@ export const POST = handler(async (req) => {
   }
   const user = await upsertUser(tg);
   await setSessionCookie({ tgId: user.tg_id });
+  const photo = await syncUserAvatar(user);
+  if (photo) user.photo_url = photo;
 
   // Прямая ссылка вида t.me/bot/app?startapp=join_<code>: Telegram кладёт
   // параметр в initData, и человек попадает в поездку без лишних шагов.

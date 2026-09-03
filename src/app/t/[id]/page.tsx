@@ -23,6 +23,10 @@ export default function HomePage() {
   const [inviteOpen, setInviteOpen] = useState(false);
   const [installOpen, setInstallOpen] = useState(false);
 
+  useEffect(() => {
+    try { localStorage.setItem("ot_last_trip", t.trip.id); } catch { /* приватный режим */ }
+  }, [t.trip.id]);
+
   const phase = tripPhase(t.trip.start_date, t.trip.end_date);
   const nDays = daysBetween(t.trip.start_date, t.trip.end_date) + 1;
   const myBal = Math.round(t.balances[t.me.tg_id] ?? 0);
@@ -39,7 +43,7 @@ export default function HomePage() {
         right={
           <>
             {t.isAdmin && <IconButton label="Настройки поездки" onClick={() => setEditTrip(true)}><GearIcon /></IconButton>}
-            <IconButton label="Все поездки" onClick={() => router.push("/trips")}><GridIcon /></IconButton>
+            <IconButton label="Все поездки" onClick={() => router.push("/trips?all=1")}><GridIcon /></IconButton>
           </>
         }
       />

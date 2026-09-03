@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { env } from "@/lib/env";
 import { db } from "@/lib/db";
-import { joinByCode, upsertUser } from "@/lib/repo";
+import { joinByCode, syncUserAvatar, upsertUser } from "@/lib/repo";
 import { sendMessage } from "@/lib/telegram";
 
 // Вебхук Telegram. Telegram шлёт сюда обновления; отвечаем всегда 200,
@@ -52,12 +52,13 @@ async function handleMessage(
   const [cmd, arg] = text.trim().split(/\s+/, 2);
 
   if (cmd === "/start") {
-    await upsertUser({
+    const u = await upsertUser({
       tgId: from.id,
       firstName: from.first_name,
       lastName: from.last_name,
       username: from.username,
     });
+    await syncUserAvatar(u).catch(() => null);
 
     // /start <code> — подтверждение входа из браузера
     if (arg && /^[a-f0-9]{10}$/.test(arg)) {

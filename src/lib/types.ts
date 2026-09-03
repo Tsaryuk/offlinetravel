@@ -39,6 +39,7 @@ export interface User {
   bio: string | null;
   dietary: string | null;
   pay_note: string | null;
+  photo_file_id?: string | null;
 }
 
 export interface Trip {
