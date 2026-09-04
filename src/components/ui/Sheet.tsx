@@ -16,6 +16,7 @@ export function Sheet({ open, onClose, title, children, full }: { open: boolean;
   const start = useRef<{ y: number; t: number } | null>(null);
   const [dy, setDy] = useState(0);
   const [closing, setClosing] = useState(false);
+  const [keyboard, setKeyboard] = useState(0);
 
   const finish = useCallback(() => {
     setClosing(true);
@@ -26,6 +27,23 @@ export function Sheet({ open, onClose, title, children, full }: { open: boolean;
       onClose();
     }, 220);
   }, [onClose]);
+
+  // Клавиатура на iPhone перекрывает нижнюю часть листа: поднимаем содержимое
+  // ровно на её высоту, иначе поля ввода оказываются под ней.
+  useEffect(() => {
+    if (!open) return;
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const onResize = () => setKeyboard(Math.max(0, window.innerHeight - vv.height - vv.offsetTop));
+    onResize();
+    vv.addEventListener("resize", onResize);
+    vv.addEventListener("scroll", onResize);
+    return () => {
+      vv.removeEventListener("resize", onResize);
+      vv.removeEventListener("scroll", onResize);
+      setKeyboard(0);
+    };
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -44,6 +62,7 @@ export function Sheet({ open, onClose, title, children, full }: { open: boolean;
   function onTouchStart(e: React.TouchEvent) {
     // тянем только когда содержимое пролистано в самый верх,
     // иначе жест принадлежит прокрутке внутри листа
+    if (keyboard > 0) return;
     if ((panel.current?.scrollTop ?? 0) > 0) return;
     start.current = { y: e.touches[0].clientY, t: Date.now() };
   }
@@ -88,7 +107,8 @@ export function Sheet({ open, onClose, title, children, full }: { open: boolean;
         onTouchEnd={onTouchEnd}
         className={`w-full overflow-y-auto overscroll-contain rounded-t-[28px] border-t border-line bg-bg px-5 pb-6 pt-2.5 ${full ? "max-h-[95vh] min-h-[85vh]" : "max-h-[90vh]"}`}
         style={{
-          paddingBottom: "calc(24px + var(--safe-bottom))",
+          paddingBottom: keyboard > 0 ? `${keyboard + 16}px` : "calc(24px + var(--safe-bottom))",
+          maxHeight: keyboard > 0 ? `calc(100dvh - 24px)` : undefined,
           transform: closing ? "translateY(100%)" : `translateY(${dy}px)`,
           transition: dragging ? "none" : "transform .25s var(--ease-out)",
           animation: dragging || closing ? undefined : "sheet-up .3s var(--ease-out)",

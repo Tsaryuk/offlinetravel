@@ -10,7 +10,7 @@ import { Avatar } from "@/components/ui/Avatar";
 import { toast } from "@/components/ui/Toast";
 import { fmtMoney } from "@/lib/money";
 import { dayLabel } from "@/lib/dates";
-import { CATEGORIES, type Expense } from "@/lib/types";
+import { categoryOf, type Expense } from "@/lib/types";
 import { photoSrc } from "@/lib/client/image";
 
 export function ExpenseDetail({ expense: e, onClose }: { expense: Expense; onClose: () => void }) {
@@ -19,17 +19,17 @@ export function ExpenseDetail({ expense: e, onClose }: { expense: Expense; onClo
   const [edit, setEdit] = useState(false);
   const [confirm, setConfirm] = useState(false);
   const canEdit = t.isAdmin || e.created_by === t.me.tg_id || e.paid_by === t.me.tg_id;
-  const cat = CATEGORIES.find((c) => c.id === e.category);
+  const cat = categoryOf(e.category);
 
   if (edit) return <ExpenseSheet open onClose={() => { setEdit(false); onClose(); }} expense={e} />;
 
   return (
     <Sheet open onClose={onClose}>
       <div className="text-[20px] font-medium tracking-[-0.02em]">
-        {e.op_type === "transfer" ? `${t.name(e.paid_by)} → ${t.name(e.transfer_to ?? 0)}` : e.description || cat?.label}
+        {e.op_type === "transfer" ? `${t.name(e.paid_by)} → ${t.name(e.transfer_to ?? 0)}` : e.description || cat.label}
       </div>
       <div className="mt-1 text-[13px] text-ink-2">
-        {dayLabel(e.expense_date)} · {e.op_type === "transfer" ? "Перевод" : e.op_type === "income" ? "Возврат" : `${cat?.icon ?? ""} ${cat?.label ?? "Другое"}`} · {e.op_type === "transfer" ? "отправил" : "платил"} {t.name(e.paid_by)}
+        {dayLabel(e.expense_date)} · {e.op_type === "transfer" ? "Перевод" : e.op_type === "income" ? "Возврат" : `${cat.icon} ${cat.label}`} · {e.op_type === "transfer" ? "отправил" : "платил"} {t.name(e.paid_by)}
       </div>
       <div className="tabular mt-4 text-[34px] font-medium tracking-[-0.03em]">{fmtMoney(e.amount, e.currency)}</div>
 

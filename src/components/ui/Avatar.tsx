@@ -1,6 +1,7 @@
 import type { Member } from "@/lib/types";
 
-const COLORS = ["#ff5a00", "#1e1e1e", "#3d3d3d", "#575757", "#6b6b6b", "#8a8a8a"];
+// Цвета подобраны так, чтобы белый текст читался на каждом
+const COLORS = ["#ff5a00", "#1d4ed8", "#1a7f4b", "#be185d", "#6d28d9", "#0e7490", "#b45309", "#b91c1c"];
 
 export function avatarColor(tgId: number): string {
   let h = 0;

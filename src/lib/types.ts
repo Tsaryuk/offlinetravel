@@ -5,18 +5,23 @@ import { z } from "zod";
 export const CURRENCIES = ["RUB", "USD", "EUR", "THB", "TRY", "GEL"] as const;
 export type Currency = (typeof CURRENCIES)[number];
 
+/** Цвет — фон кружка категории; tint — насыщенный вариант для полос и точек. */
 export const CATEGORIES = [
-  { id: "groceries", label: "Продукты", icon: "🛒" },
-  { id: "restaurants", label: "Кафе и трапезные", icon: "🍽" },
-  { id: "transport", label: "Транспорт", icon: "🚆" },
-  { id: "housing", label: "Ночлег", icon: "🏕" },
-  { id: "gear", label: "Снаряжение", icon: "🎒" },
-  { id: "tickets", label: "Билеты и сборы", icon: "🎟" },
-  { id: "medical", label: "Аптечка", icon: "💊" },
-  { id: "entertainment", label: "Развлечения", icon: "🎭" },
-  { id: "shopping", label: "Покупки", icon: "🛍" },
-  { id: "other", label: "Другое", icon: "📦" },
+  { id: "groceries", label: "Продукты", icon: "🛒", color: "#e8f3ec", tint: "#1a7f4b" },
+  { id: "restaurants", label: "Кафе и трапезные", icon: "🍽", color: "#fdeee4", tint: "#c2410c" },
+  { id: "transport", label: "Транспорт", icon: "🚆", color: "#e6eefb", tint: "#1d4ed8" },
+  { id: "housing", label: "Ночлег", icon: "🏕", color: "#efe9fb", tint: "#6d28d9" },
+  { id: "gear", label: "Снаряжение", icon: "🎒", color: "#fdf2dc", tint: "#a16207" },
+  { id: "tickets", label: "Билеты и сборы", icon: "🎟", color: "#fce8f0", tint: "#be185d" },
+  { id: "medical", label: "Аптечка", icon: "💊", color: "#fde9e7", tint: "#b91c1c" },
+  { id: "entertainment", label: "Развлечения", icon: "🎭", color: "#e7f1f6", tint: "#0e7490" },
+  { id: "shopping", label: "Покупки", icon: "🛍", color: "#f0eee9", tint: "#57534e" },
+  { id: "other", label: "Другое", icon: "📦", color: "#eeeeec", tint: "#4b5563" },
 ] as const;
+
+export function categoryOf(id: string) {
+  return CATEGORIES.find((c) => c.id === id) ?? CATEGORIES[CATEGORIES.length - 1];
+}
 export type CategoryId = (typeof CATEGORIES)[number]["id"];
 
 export const PLACE_CATEGORIES = [
