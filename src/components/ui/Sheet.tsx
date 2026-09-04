@@ -33,12 +33,12 @@ export function Sheet({ open, onClose, title, children, full }: { open: boolean;
   const [entered, setEntered] = useState(false);
 
   useEffect(() => {
-    if (!open) {
-      setEntered(false);
-      return;
-    }
+    if (!open) return;
     const id = window.setTimeout(() => setEntered(true), 320);
-    return () => window.clearTimeout(id);
+    return () => {
+      window.clearTimeout(id);
+      setEntered(false);
+    };
   }, [open]);
 
   const finish = useCallback(() => {
