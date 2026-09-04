@@ -44,7 +44,7 @@ export function TripForm({ open, onClose, onCreated, trip }: { open: boolean; on
 
   return (
     <Sheet open={open} onClose={onClose} title={trip ? "Поездка" : "Новая поездка"}>
-      <FieldGroup label="Название"><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Дорога в Лавру" autoFocus /></FieldGroup>
+      <FieldGroup label="Название"><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Дорога в Лавру" /></FieldGroup>
       <div className="grid grid-cols-2 gap-2">
         <FieldGroup label="Начало"><Input type="date" value={start} onChange={(e) => setStart(e.target.value)} /></FieldGroup>
         <FieldGroup label="Окончание"><Input type="date" value={end} onChange={(e) => setEnd(e.target.value)} /></FieldGroup>

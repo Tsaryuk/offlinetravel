@@ -45,7 +45,7 @@ export function PlaceForm({ open, onClose, place }: { open: boolean; onClose: ()
 
   return (
     <Sheet open={open} onClose={onClose} title={place ? "Место" : "Новое место"} full>
-      <FieldGroup label="Название"><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ночёвка у Радонежа" autoFocus={!place} /></FieldGroup>
+      <FieldGroup label="Название"><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ночёвка у Радонежа" /></FieldGroup>
       <FieldGroup label="Адрес или ориентир"><Input value={addr} onChange={(e) => setAddr(e.target.value)} placeholder="Радонеж, у источника" /></FieldGroup>
       <FieldGroup label="Категория">
         <ChipRow className="flex-wrap">{PLACE_CATEGORIES.map((c) => <Chip key={c.id} on={cat === c.id} onClick={() => setCat(c.id)}>{c.icon} {c.label}</Chip>)}</ChipRow>

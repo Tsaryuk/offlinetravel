@@ -166,7 +166,7 @@ export function ExpenseSheet({ open, onClose, expense }: { open: boolean; onClos
 
       {op !== "transfer" && (
         <div className="mb-2.5 flex gap-2">
-          <Input value={desc} onChange={(e) => setDesc(e.target.value)} placeholder={op === "income" ? "Вернули залог" : "На что потратили"} className="min-w-0 flex-1" autoFocus={!expense} />
+          <Input value={desc} onChange={(e) => setDesc(e.target.value)} placeholder={op === "income" ? "Вернули залог" : "На что потратили"} className="min-w-0 flex-1" />
           <Select value={cat} onChange={(e) => setCat(e.target.value)} className="w-[132px] shrink-0" aria-label="Категория">
             {CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.icon} {c.label}</option>)}
           </Select>

@@ -97,7 +97,7 @@ export function HomeTab({ onGoTab }: { onGoTab: (index: number, sub?: "balance")
       <button
         type="button"
         onClick={() => setAddOpen(true)}
-        className="mt-2 flex h-14 w-full items-center justify-center gap-2 rounded-pill bg-accent text-[16px] font-medium text-white shadow-lg shadow-accent/20 active:scale-[.98]"
+        className="mt-2 flex h-14 w-full items-center justify-center gap-2 rounded-pill bg-accent text-[16px] font-medium text-white active:scale-[.98]"
       >
         ＋ Добавить расход
       </button>

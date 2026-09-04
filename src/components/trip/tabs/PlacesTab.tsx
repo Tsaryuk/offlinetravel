@@ -58,7 +58,7 @@ export function PlacesTab({ active }: { active?: boolean }) {
           type="button"
           aria-label="Добавить место"
           onClick={() => setForm({ open: true })}
-          className="fixed right-5 z-[45] flex h-14 w-14 items-center justify-center rounded-full bg-accent text-[28px] font-light text-white shadow-lg shadow-accent/25 transition active:scale-95"
+          className="fixed right-5 z-[45] flex h-14 w-14 items-center justify-center rounded-full bg-accent text-[28px] font-light text-white transition active:scale-95"
           style={{ bottom: "calc(var(--nav-h) + var(--safe-bottom) + 18px)" }}
         >+</button>
       )}
