@@ -7,20 +7,42 @@ import { onBackButton } from "@/lib/client/tma";
 const CLOSE_DISTANCE = 110; // сколько пройти пальцем вниз, чтобы лист закрылся
 const CLOSE_VELOCITY = 0.5; // либо резкий флик — px/мс
 
+interface Frame {
+  top: number;
+  height: number;
+}
+
 /**
- * Нижний лист с перетаскиванием: тянется за пальцем, закрывается свайпом вниз,
- * тапом по фону, Escape и аппаратной кнопкой «назад» в Telegram.
+ * Нижний лист.
+ *
+ * На iOS `position: fixed` не спасает: при фокусе на поле система прокручивает
+ * страницу, чтобы показать его, и лист уезжает за верхний край. Поэтому лист
+ * не «прибит» к окну, а каждый кадр позиционируется по visualViewport —
+ * области, которая реально видна поверх клавиатуры. Плюс страница под листом
+ * замораживается, иначе iOS утаскивает её вместе с содержимым.
  */
 export function Sheet({ open, onClose, title, children, full }: { open: boolean; onClose: () => void; title?: string; children: ReactNode; full?: boolean }) {
   const panel = useRef<HTMLDivElement>(null);
   const start = useRef<{ y: number; t: number } | null>(null);
   const [dy, setDy] = useState(0);
   const [closing, setClosing] = useState(false);
-  const [keyboard, setKeyboard] = useState(0);
+  const [frame, setFrame] = useState<Frame>({ top: 0, height: 0 });
+  const [keyboard, setKeyboard] = useState(false);
+  // Анимация появления играет один раз: иначе при каждом изменении высоты
+  // (например, когда вылезла клавиатура) лист заново уезжал бы вниз.
+  const [entered, setEntered] = useState(false);
+
+  useEffect(() => {
+    if (!open) {
+      setEntered(false);
+      return;
+    }
+    const id = window.setTimeout(() => setEntered(true), 320);
+    return () => window.clearTimeout(id);
+  }, [open]);
 
   const finish = useCallback(() => {
     setClosing(true);
-    // ждём анимацию ухода, потом снимаем с экрана
     window.setTimeout(() => {
       setClosing(false);
       setDy(0);
@@ -28,20 +50,46 @@ export function Sheet({ open, onClose, title, children, full }: { open: boolean;
     }, 220);
   }, [onClose]);
 
-  // Клавиатура на iPhone перекрывает нижнюю часть листа: поднимаем содержимое
-  // ровно на её высоту, иначе поля ввода оказываются под ней.
+  // Следим за видимой областью: она ужимается, когда вылезает клавиатура
   useEffect(() => {
     if (!open) return;
     const vv = window.visualViewport;
-    if (!vv) return;
-    const onResize = () => setKeyboard(Math.max(0, window.innerHeight - vv.height - vv.offsetTop));
-    onResize();
-    vv.addEventListener("resize", onResize);
-    vv.addEventListener("scroll", onResize);
+
+    const apply = () => {
+      if (!vv) {
+        setFrame({ top: 0, height: window.innerHeight });
+        return;
+      }
+      setFrame({ top: vv.offsetTop, height: vv.height });
+      setKeyboard(window.innerHeight - vv.height > 120);
+    };
+    apply();
+
+    vv?.addEventListener("resize", apply);
+    vv?.addEventListener("scroll", apply);
     return () => {
-      vv.removeEventListener("resize", onResize);
-      vv.removeEventListener("scroll", onResize);
-      setKeyboard(0);
+      vv?.removeEventListener("resize", apply);
+      vv?.removeEventListener("scroll", apply);
+      setKeyboard(false);
+    };
+  }, [open]);
+
+  // Замораживаем страницу под листом, сохраняя позицию прокрутки
+  useEffect(() => {
+    if (!open) return;
+    const y = window.scrollY;
+    const body = document.body;
+    const prev = { position: body.style.position, top: body.style.top, width: body.style.width, overflow: body.style.overflow };
+    body.style.position = "fixed";
+    body.style.top = `-${y}px`;
+    body.style.width = "100%";
+    body.style.overflow = "hidden";
+    return () => {
+      body.style.position = prev.position;
+      body.style.top = prev.top;
+      body.style.width = prev.width;
+      body.style.overflow = prev.overflow;
+      window.scrollTo(0, y);
     };
   }, [open]);
 
@@ -49,20 +97,15 @@ export function Sheet({ open, onClose, title, children, full }: { open: boolean;
     if (!open) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && finish();
     document.addEventListener("keydown", onKey);
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
     const offBack = onBackButton(finish);
     return () => {
       document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = prev;
       offBack();
     };
   }, [open, finish]);
 
   function onTouchStart(e: React.TouchEvent) {
-    // тянем только когда содержимое пролистано в самый верх,
-    // иначе жест принадлежит прокрутке внутри листа
-    if (keyboard > 0) return;
+    if (keyboard) return; // при открытой клавиатуре лист не тянем — иначе прыгает
     if ((panel.current?.scrollTop ?? 0) > 0) return;
     start.current = { y: e.touches[0].clientY, t: Date.now() };
   }
@@ -70,7 +113,7 @@ export function Sheet({ open, onClose, title, children, full }: { open: boolean;
   function onTouchMove(e: React.TouchEvent) {
     if (!start.current) return;
     const delta = e.touches[0].clientY - start.current.y;
-    if (delta <= 0) return; // вверх не тянем
+    if (delta <= 0) return;
     if ((panel.current?.scrollTop ?? 0) > 0) {
       start.current = null;
       setDy(0);
@@ -91,10 +134,19 @@ export function Sheet({ open, onClose, title, children, full }: { open: boolean;
   if (!open || typeof document === "undefined") return null;
 
   const dragging = dy > 0;
+  // Пока клавиатура открыта, лист занимает всю видимую область: так поля
+  // не оказываются под ней и до кнопки сохранения можно долистать.
+  const maxHeight = keyboard ? frame.height : Math.round(frame.height * (full ? 0.95 : 0.9));
+
   return createPortal(
     <div
-      className="fixed inset-0 z-[200] flex items-end bg-black/40 backdrop-blur-md"
-      style={{ opacity: closing ? 0 : Math.max(0.15, 1 - dy / 420), transition: dragging ? "none" : "opacity .22s ease" }}
+      className="fixed left-0 z-[200] flex w-full items-end bg-black/40 backdrop-blur-md"
+      style={{
+        top: frame.top,
+        height: frame.height || "100dvh",
+        opacity: closing ? 0 : Math.max(0.15, 1 - dy / 420),
+        transition: dragging ? "none" : "opacity .22s ease",
+      }}
       onClick={finish}
     >
       <div
@@ -105,13 +157,14 @@ export function Sheet({ open, onClose, title, children, full }: { open: boolean;
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
-        className={`w-full overflow-y-auto overscroll-contain rounded-t-[28px] border-t border-line bg-bg px-5 pb-6 pt-2.5 ${full ? "max-h-[95vh] min-h-[85vh]" : "max-h-[90vh]"}`}
+        className="w-full overflow-y-auto overscroll-contain rounded-t-[28px] border-t border-line bg-bg px-5 pt-2.5"
         style={{
-          paddingBottom: keyboard > 0 ? `${keyboard + 16}px` : "calc(24px + var(--safe-bottom))",
-          maxHeight: keyboard > 0 ? `calc(100dvh - 24px)` : undefined,
+          maxHeight,
+          minHeight: full && !keyboard ? Math.round(frame.height * 0.85) : undefined,
+          paddingBottom: keyboard ? 24 : "calc(24px + var(--safe-bottom))",
           transform: closing ? "translateY(100%)" : `translateY(${dy}px)`,
           transition: dragging ? "none" : "transform .25s var(--ease-out)",
-          animation: dragging || closing ? undefined : "sheet-up .3s var(--ease-out)",
+          animation: entered || dragging || closing ? undefined : "sheet-up .3s var(--ease-out)",
         }}
       >
         <div className="mx-auto mb-4 h-1 w-9 shrink-0 rounded-full bg-surface-2" />

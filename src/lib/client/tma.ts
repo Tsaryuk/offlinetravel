@@ -6,6 +6,7 @@ import {
   miniApp,
   viewport,
   backButton,
+  swipeBehavior,
   retrieveRawInitData,
   themeParams,
   hapticFeedback,
@@ -25,6 +26,11 @@ export function initTelegram(): void {
     try { miniApp.mount(); } catch { /* недоступно на этой платформе */ }
     try { themeParams.mount(); } catch { /* ignore */ }
     try { backButton.mount(); } catch { /* ignore */ }
+    // Вертикальный свайп закрывает Mini App и конфликтует с прокруткой листов
+    try {
+      swipeBehavior.mount();
+      swipeBehavior.disableVertical();
+    } catch { /* на старых клиентах метода нет */ }
     viewport
       .mount()
       .then(() => {

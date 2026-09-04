@@ -3,10 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTripCtx } from "@/components/trip/TripContext";
-import { PageHeader, IconButton } from "@/components/ui/PageHeader";
-import { Card, StatTile, SectionTitle } from "@/components/ui/Card";
+import { IconButton } from "@/components/ui/PageHeader";
+import { Card } from "@/components/ui/Card";
 import { AvatarStack } from "@/components/ui/Avatar";
-import { Button } from "@/components/ui/Button";
 import { ExpenseSheet } from "@/components/trip/ExpenseSheet";
 import { ScheduleList } from "@/components/trip/ScheduleList";
 import { TripForm } from "@/components/trip/TripForm";
@@ -38,53 +37,77 @@ export function HomeTab({ onGoTab }: { onGoTab: (index: number, sub?: "balance")
 
   return (
     <>
-      <PageHeader
-        title={t.trip.name}
-        right={
-          <>
+      {/* Шапка поездки: цветной блок, задающий настроение экрану */}
+      <section
+        className="-mx-5 mb-4 px-5 pb-5"
+        style={{
+          paddingTop: "calc(20px + var(--safe-top))",
+          background: phase.kind === "during"
+            ? "linear-gradient(160deg, #fff3ec 0%, var(--color-bg) 78%)"
+            : phase.kind === "after"
+              ? "linear-gradient(160deg, var(--color-surface) 0%, var(--color-bg) 78%)"
+              : "linear-gradient(160deg, #eef2fb 0%, var(--color-bg) 78%)",
+        }}
+      >
+        <div className="mb-3 flex items-start justify-between gap-3">
+          <h1 className="min-w-0 flex-1 text-[30px] font-medium leading-tight tracking-[-0.03em]">{t.trip.name}</h1>
+          <div className="flex shrink-0 items-center gap-1 pt-1">
             {t.isAdmin && <IconButton label="Настройки поездки" onClick={() => setEditTrip(true)}><GearIcon /></IconButton>}
             <IconButton label="Все поездки" onClick={() => router.push("/trips?all=1")}><GridIcon /></IconButton>
-          </>
-        }
-      />
-
-      <Card className="p-[18px]">
-        <div className="flex items-center justify-between gap-3">
-          <div className="text-[15px] text-ink-2">
-            {dateRange(t.trip.start_date, t.trip.end_date)} · {nDays} {plural(nDays, "день", "дня", "дней")}
           </div>
-          <span className={`shrink-0 rounded-pill px-2.5 py-1 text-[11px] font-medium ${phase.kind === "during" ? "bg-accent text-white" : phase.kind === "after" ? "bg-surface-2 text-ink-2" : "bg-inverse text-inverse-fg"}`}>
-            {phaseLabel(phase)}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <span className={`rounded-pill px-3 py-1.5 text-[12px] font-medium ${
+            phase.kind === "during" ? "bg-accent text-white" : phase.kind === "after" ? "bg-surface-2 text-ink-2" : "bg-inverse text-inverse-fg"
+          }`}>{phaseLabel(phase)}</span>
+          <span className="rounded-pill bg-bg/70 px-3 py-1.5 text-[12px] font-medium text-ink-2">
+            {dateRange(t.trip.start_date, t.trip.end_date)} · {nDays} {plural(nDays, "день", "дня", "дней")}
           </span>
         </div>
-        {t.trip.description && <div className="mt-2 text-[14px] leading-snug text-ink-2">{t.trip.description}</div>}
-        <div className="mt-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <AvatarStack members={t.members} />
-            <span className="text-[13px] text-ink-2">{t.members.length} {plural(t.members.length, "участник", "участника", "участников")}</span>
-          </div>
-          <button type="button" className="text-[13px] font-medium underline underline-offset-4" onClick={() => setInviteOpen(true)}>Пригласить</button>
-        </div>
-      </Card>
 
-      <div className="mt-2 grid grid-cols-2 gap-2">
-        <StatTile value={fmtMoney(total, cur)} label="Потрачено всего" onClick={() => onGoTab(1)} />
-        <StatTile
-          value={myBal === 0 ? "0 " + fmtMoney(0, cur).slice(-1) : fmtMoney(myBal, cur, { sign: true })}
-          label={myBal > 0 ? "Вам должны" : myBal < 0 ? "Вы должны" : "Всё ровно"}
-          tone={myBal > 0 ? "good" : myBal < 0 ? "bad" : undefined}
+        {t.trip.description && <p className="mt-3 text-[14px] leading-snug text-ink-2">{t.trip.description}</p>}
+
+        <button type="button" onClick={() => setInviteOpen(true)} className="mt-4 flex w-full items-center gap-3 rounded-card bg-bg/70 px-4 py-3 text-left active:bg-bg">
+          <AvatarStack members={t.members} size={30} />
+          <span className="flex-1 text-[13.5px] text-ink-2">{t.members.length} {plural(t.members.length, "участник", "участника", "участников")}</span>
+          <span className="text-[13px] font-medium text-accent">Пригласить</span>
+        </button>
+      </section>
+
+      {/* Деньги: два цветных блока, крупные цифры */}
+      <div className="grid grid-cols-2 gap-2">
+        <button type="button" onClick={() => onGoTab(1)} className="rounded-card bg-surface px-[18px] pb-4 pt-[18px] text-left active:bg-surface-2">
+          <div className="tabular text-[26px] font-medium leading-none tracking-[-0.03em]">{fmtMoney(total, cur)}</div>
+          <div className="mt-2 text-[12px] font-medium text-ink-2">Потрачено всего</div>
+        </button>
+        <button
+          type="button"
           onClick={() => onGoTab(1, "balance")}
-        />
+          className="rounded-card px-[18px] pb-4 pt-[18px] text-left transition active:brightness-95"
+          style={{ background: myBal > 0 ? "var(--color-good-soft)" : myBal < 0 ? "var(--color-bad-soft)" : "var(--color-surface)" }}
+        >
+          <div className={`tabular text-[26px] font-medium leading-none tracking-[-0.03em] ${myBal > 0 ? "text-good" : myBal < 0 ? "text-bad" : ""}`}>
+            {myBal === 0 ? "Ровно" : fmtMoney(myBal, cur, { sign: true })}
+          </div>
+          <div className="mt-2 text-[12px] font-medium text-ink-2">{myBal > 0 ? "Вам должны" : myBal < 0 ? "Вы должны" : "Долгов нет"}</div>
+        </button>
       </div>
 
-      <div className="mt-2 flex gap-2">
-        <Button size="lg" onClick={() => setAddOpen(true)}>＋ Расход</Button>
-        <Button size="lg" variant="ghost" onClick={() => onGoTab(1, "balance")}>Долги</Button>
-      </div>
+      <button
+        type="button"
+        onClick={() => setAddOpen(true)}
+        className="mt-2 flex h-14 w-full items-center justify-center gap-2 rounded-pill bg-accent text-[16px] font-medium text-white shadow-lg shadow-accent/20 active:scale-[.98]"
+      >
+        ＋ Добавить расход
+      </button>
 
       <GearCard />
 
-      <SectionTitle className="mt-7">Расписание</SectionTitle>
+      <div className="mb-2.5 mt-6 flex items-baseline justify-between">
+        <h2 className="text-[17px] font-medium tracking-[-0.02em]">Расписание</h2>
+        <span className="text-[12px] text-ink-2">{t.schedule.length} {plural(t.schedule.length, "событие", "события", "событий")}</span>
+      </div>
       <ScheduleList initialDay={phase.kind === "during" ? localISO() : t.trip.start_date} />
 
       <InstallBanner onOpen={() => setInstallOpen(true)} />
@@ -109,7 +132,7 @@ function InstallBanner({ onOpen }: { onOpen: () => void }) {
   }, []);
   if (!show) return null;
   return (
-    <Card className="mt-2 flex items-center gap-3 px-[18px] py-3.5">
+    <Card className="mt-4 flex items-center gap-3 px-[18px] py-3.5">
       <div className="text-[18px]">📲</div>
       <button type="button" className="min-w-0 flex-1 text-left" onClick={onOpen}>
         <div className="text-[14px] font-medium">Поставить на экран телефона</div>
@@ -124,18 +147,35 @@ function GearCard() {
   const t = useTripCtx();
   const router = useRouter();
   const total = t.gear.length;
-  const assigned = t.gear.filter((g) => g.assignee).length;
   const packed = t.gear.filter((g) => g.done).length;
-  const sub = !total ? "Список пуст — кто что берёт?" : `${assigned} из ${total} распределено · ${packed} собрано`;
+  const free = t.gear.filter((g) => !g.assignee).length;
+  const progress = total ? Math.round((packed / total) * 100) : 0;
+
   return (
-    <Card className="mt-2 flex cursor-pointer items-center gap-3.5 px-[18px] py-4 active:bg-surface-2" onClick={() => router.push(`/t/${t.trip.id}/gear`)}>
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-bg text-[18px]">🎒</div>
+    <button
+      type="button"
+      onClick={() => router.push(`/t/${t.trip.id}/gear`)}
+      className="mt-2 flex w-full items-center gap-3.5 rounded-card bg-surface px-[18px] py-4 text-left active:bg-surface-2"
+    >
+      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-bg text-[20px]">🎒</div>
       <div className="min-w-0 flex-1">
-        <div className="text-[15px] font-medium tracking-[-0.01em]">Снаряжение</div>
-        <div className="mt-0.5 text-[12.5px] text-ink-2">{sub}</div>
+        <div className="flex items-baseline justify-between gap-2">
+          <span className="text-[15px] font-medium tracking-[-0.01em]">Снаряжение</span>
+          {total > 0 && <span className="tabular shrink-0 text-[12px] text-ink-2">{packed}/{total}</span>}
+        </div>
+        {total > 0 ? (
+          <>
+            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-bg">
+              <div className="h-full rounded-full bg-good transition-all duration-500" style={{ width: `${progress}%` }} />
+            </div>
+            {free > 0 && <div className="mt-1.5 text-[12px] text-bad">{free} без хозяина</div>}
+          </>
+        ) : (
+          <div className="mt-0.5 text-[12.5px] text-ink-2">Список пуст — кто что берёт?</div>
+        )}
       </div>
       <div className="text-[18px] text-ink-3">›</div>
-    </Card>
+    </button>
   );
 }
 
